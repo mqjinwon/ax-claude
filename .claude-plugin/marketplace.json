@@ -4,7 +4,7 @@
   "description": "Personal Agent Control Plane for Claude Code — session memory, skill routing, research ingestion",
   "owner": {
     "name": "mqjinwon",
-    "email": ""
+    "url": "https://github.com/mqjinwon"
   },
   "plugins": [
     {
