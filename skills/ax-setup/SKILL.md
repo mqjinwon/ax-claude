@@ -1,6 +1,6 @@
 ---
 name: ax-setup
-version: 1.5.0
+version: 1.8.0
 description: |
   Post-install setup for AX plugin. Fully automatic — no manual edits needed.
   Run once after /plugin install ax-claude.
@@ -15,19 +15,17 @@ Run once after installing the AX plugin. Everything is automated.
 
 ## Step 1: Resolve plugin root
 
-`$CLAUDE_PLUGIN_ROOT` may be empty when run as a skill. Detect the real path:
+`$CLAUDE_PLUGIN_ROOT` may be empty when run as a skill. Detect the real path, preferring the active marketplace checkout and then the newest cache entry:
 
 ```bash
-PLUGIN_ROOT="$CLAUDE_PLUGIN_ROOT"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
 
 if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/adapters/ax-ingest.sh" ]; then
-  for CANDIDATE in \
-    "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* \
+  for P in \
     "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r) \
     "$HOME/.ax"; do
-    for P in $CANDIDATE; do
-      [ -f "$P/adapters/ax-ingest.sh" ] && PLUGIN_ROOT="$P" && break 2
-    done
+    [ -f "$P/adapters/ax-ingest.sh" ] && PLUGIN_ROOT="$P" && break
   done
 fi
 

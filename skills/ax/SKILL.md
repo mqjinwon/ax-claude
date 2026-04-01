@@ -1,6 +1,6 @@
 ---
 name: ax
-version: 1.5.0
+version: 1.8.0
 description: |
   AX Personal Agent Control Plane.
   /ax          → resume: show session context from MEMORY.md
@@ -23,9 +23,16 @@ Run this bash block first to load project context:
 ```bash
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
-# Resolve PLUGIN_ROOT: plugin cache (~/.claude/plugins) or git-clone (~/.ax)
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+# Resolve PLUGIN_ROOT, preferring the active install over stale cache hits.
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for P in \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r) \
+    "$HOME/.ax"; do
+    [ -f "$P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
 PROJECT_NAME=$(basename "$PROJECT_ROOT")
@@ -66,9 +73,6 @@ Determine mode from the user's input AFTER the `/ax` command:
 Show a structured context summary. Extract sections from MEMORY.md using bash:
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
-PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
@@ -127,9 +131,6 @@ User ran: `/ax learn` (no arguments).
 Run the guide script and output its result:
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
-PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 if [ -f "$PLUGIN_ROOT/bin/ax-guide.py" ]; then
   python3 "$PLUGIN_ROOT/bin/ax-guide.py" "$PLUGIN_ROOT/routing/skill-routing.yaml"
 else
@@ -192,9 +193,6 @@ The user described a task. Find the best canonical skill.
 ### Step 1: Keyword match (deterministic)
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
-PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 if [ -f "$PLUGIN_ROOT/bin/ax-route.py" ]; then
   python3 "$PLUGIN_ROOT/bin/ax-route.py" "<user's full input>" "$PLUGIN_ROOT/routing/skill-routing.yaml"
 else

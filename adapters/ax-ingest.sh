@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ax-ingest.sh — SessionEnd hook orchestrator
-# Reads project root from Claude hook stdin (cwd field), then runs adapters under flock.
+# Reads project root from Claude hook stdin (cwd field), then runs adapters under a best-effort lock.
 
 set -euo pipefail
 
@@ -47,10 +47,20 @@ ax_ensure_topic_file "$PROJECT_ROOT" "study-notes"   "$PLUGIN_ROOT/templates/STU
 
 LOCKFILE="$PROJECT_ROOT/.ax/.ingest.lock"
 mkdir -p "$(dirname "$LOCKFILE")"
+LOCKDIR="${LOCKFILE}.d"
 
-(
-  flock -n 9 || exit 0
+run_ingest() {
   "$ADAPTER_DIR/ingest-gstack.sh"   "$PROJECT_ROOT"
   "$ADAPTER_DIR/ingest-omc.sh"      "$PROJECT_ROOT"
   "$ADAPTER_DIR/ingest-research.sh" "$PROJECT_ROOT"
-) 9>"$LOCKFILE"
+}
+
+if command -v flock >/dev/null 2>&1; then
+  (
+    flock -n 9 || exit 0
+    run_ingest
+  ) 9>"$LOCKFILE"
+elif mkdir "$LOCKDIR" 2>/dev/null; then
+  trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
+  run_ingest
+fi

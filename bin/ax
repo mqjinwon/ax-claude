@@ -4,9 +4,57 @@
 
 set -euo pipefail
 
-# Resolve plugin root regardless of install location (git clone or plugin cache)
-_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
-PLUGIN_ROOT="$(cd "$(dirname "$_SCRIPT")/.." && pwd)"
+resolve_script_path() {
+  local source_path="$1"
+  local source_dir
+  if [[ "$source_path" != */* ]]; then
+    source_path="$(command -v "$source_path" 2>/dev/null || printf '%s\n' "$source_path")"
+  fi
+  while [ -L "$source_path" ]; do
+    source_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
+    source_path="$(readlink "$source_path")"
+    [[ "$source_path" != /* ]] && source_path="$source_dir/$source_path"
+  done
+  source_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
+  printf '%s/%s\n' "$source_dir" "$(basename "$source_path")"
+}
+
+legacy_claude_project_id() {
+  local project_root="$1"
+  local absolute_root
+  absolute_root="$(cd -P "$project_root" && pwd)"
+  absolute_root="${absolute_root//\//-}"
+  absolute_root="${absolute_root//_/-}"
+  printf '%s' "$absolute_root"
+}
+
+claude_project_dir_matches_root() {
+  local project_dir="$1"
+  local project_root="$2"
+  local project_root_real session_file session_cwd
+  local found_session=false
+  project_root_real="$(cd -P "$project_root" && pwd)"
+
+  [ -d "$project_dir" ] || return 0
+
+  shopt -s nullglob
+  for session_file in "$project_dir"/*.jsonl; do
+    found_session=true
+    while IFS= read -r session_cwd; do
+      [ -z "$session_cwd" ] && continue
+      [ "$session_cwd" = "$project_root" ] && return 0
+      [ "$session_cwd" = "$project_root_real" ] && return 0
+      return 1
+    done < <(jq -r 'select(.cwd? != null) | .cwd' "$session_file" 2>/dev/null)
+  done
+  shopt -u nullglob
+
+  $found_session || return 0
+  return 0
+}
+
+# Resolve plugin root regardless of install location without GNU-specific path tools.
+PLUGIN_ROOT="$(cd "$(dirname "$(resolve_script_path "${BASH_SOURCE[0]}")")/.." && pwd)"
 
 COMMAND="${1:-help}"
 
@@ -28,10 +76,18 @@ case "$COMMAND" in
 
     mkdir -p "$MEMORY_DIR"
 
-    # Derive stable identifiers
+    # Derive stable identifiers. Claude currently uses a legacy path-to-dash
+    # encoding for project directories, so keep that naming but guard against
+    # collisions before writing any memory symlink.
     SLUG=$(basename "$PROJECT_ROOT")
-    # Claude encodes project path by replacing / and _ with - (keeps leading -)
-    CLAUDE_PROJECT_ID=$(printf '%s' "$PROJECT_ROOT" | tr '/_' '--')
+    CLAUDE_PROJECT_ID="$(legacy_claude_project_id "$PROJECT_ROOT")"
+    CLAUDE_PROJECT_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}"
+    if ! claude_project_dir_matches_root "$CLAUDE_PROJECT_DIR" "$PROJECT_ROOT"; then
+      echo "ERROR: Claude project directory collision detected at $CLAUDE_PROJECT_DIR" >&2
+      echo "       Existing Claude sessions in that directory point to a different project." >&2
+      echo "       Refusing to relink memory automatically." >&2
+      exit 1
+    fi
 
     # Write config (no yq dependency — plain text)
     cat > "$AX_DIR/config.yaml" << EOF
@@ -48,8 +104,16 @@ EOF
     sed "s|{{project_slug}}|$SLUG_ESCAPED|g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
 
     # Symlink into Claude's native memory path
-    CLAUDE_MEM_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}/memory"
+    CLAUDE_MEM_DIR="$CLAUDE_PROJECT_DIR/memory"
     mkdir -p "$CLAUDE_MEM_DIR"
+    if [ -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
+      EXISTING_TARGET="$(readlink "$CLAUDE_MEM_DIR/MEMORY.md" 2>/dev/null || true)"
+      if [ -n "$EXISTING_TARGET" ] && [ "$EXISTING_TARGET" != "$MEMORY_DIR/MEMORY.md" ]; then
+        echo "ERROR: Claude memory link collision detected at $CLAUDE_MEM_DIR/MEMORY.md" >&2
+        echo "       Existing memory link points to a different project: $EXISTING_TARGET" >&2
+        exit 1
+      fi
+    fi
 
     if [ -f "$CLAUDE_MEM_DIR/MEMORY.md" ] && [ ! -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
       echo "ax: backing up existing MEMORY.md → MEMORY.md.bak"
@@ -64,7 +128,7 @@ EOF
     echo "  Memory  : $MEMORY_DIR/MEMORY.md"
     echo "  Symlink : $CLAUDE_MEM_DIR/MEMORY.md → (above)"
     echo ""
-    echo "  Hooks   : ax-ingest.sh is registered in ~/.claude/settings.json"
+    echo "  Hooks   : SessionEnd hook is handled by the plugin system or /ax-setup"
     echo "  Run     : ax ingest   ← manual trigger to populate MEMORY.md now"
     echo ""
     echo "  PATH    : add to ~/.bashrc or ~/.zshrc:"

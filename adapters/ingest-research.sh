@@ -26,6 +26,24 @@ MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 # shellcheck source=../lib/ax-utils.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/ax-utils.sh"
 
+file_mtime() {
+  if stat -f %m "$1" >/dev/null 2>&1; then
+    stat -f %m "$1"
+  else
+    stat -c %Y "$1"
+  fi
+}
+
+date_from_epoch() {
+  if date -u -r "$1" +%Y-%m-%d >/dev/null 2>&1; then
+    date -u -r "$1" +%Y-%m-%d
+  elif date -u -d "@$1" +%Y-%m-%d >/dev/null 2>&1; then
+    date -u -d "@$1" +%Y-%m-%d
+  else
+    date -u +%Y-%m-%d
+  fi
+}
+
 # Determine target for research notes (split memory → research-notes.md, legacy → MEMORY.md)
 RESEARCH_TARGET="$PROJECT_ROOT/.ax/memory/research-notes.md"
 if [ ! -f "$RESEARCH_TARGET" ]; then
@@ -59,7 +77,7 @@ for REL_PATH in "${!RESEARCH_FILES[@]}"; do
   LABEL="${RESEARCH_FILES[$REL_PATH]}"
 
   # Entry ID based on file modification time (changes when file is updated)
-  MTIME=$(stat -c %Y "$FULL_PATH" 2>/dev/null || echo 0)
+  MTIME=$(file_mtime "$FULL_PATH" 2>/dev/null || echo 0)
   FILE_SLUG=$(printf '%s' "$REL_PATH" | tr '/_.' '---' | cut -c1-20)
   ENTRY_ID="${MTIME}-${FILE_SLUG}"
 
@@ -71,7 +89,7 @@ for REL_PATH in "${!RESEARCH_FILES[@]}"; do
     | tr '\n' ' ' | cut -c1-120 || true)
   [ -z "$SUMMARY" ] && SUMMARY="(no summary)"
 
-  FILE_DATE=$(date -d "@$MTIME" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
+  FILE_DATE=$(date_from_epoch "$MTIME")
   SIZE=$(wc -l < "$FULL_PATH" | tr -d ' ')
 
   {
@@ -93,32 +111,34 @@ rm -f "$CONTENT_FILE"
 # Handle eval_results.json → experiment-log.md
 EVAL_JSON="$PROJECT_ROOT/eval_results.json"
 if [ -f "$EVAL_JSON" ]; then
-  MTIME=$(stat -c %Y "$EVAL_JSON" 2>/dev/null || echo 0)
+  MTIME=$(file_mtime "$EVAL_JSON" 2>/dev/null || echo 0)
   ENTRY_ID="${MTIME}-eval-results-json"
 
   # Check against experiment-log.md existing IDs
   EXPLOG="$PROJECT_ROOT/.ax/memory/experiment-log.md"
   if [ -f "$EXPLOG" ] && ! grep -qF "entry:${ENTRY_ID}" "$EXPLOG" 2>/dev/null; then
-    FILE_DATE=$(date -d "@$MTIME" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
+    FILE_DATE=$(date_from_epoch "$MTIME")
     # Extract key metrics from JSON
-    SUMMARY=$(python3 -c "
-import json, sys
+    SUMMARY=$(python3 -c '
+import json
+import sys
+
 try:
-  with open('$EVAL_JSON') as f:
-    d = json.load(f)
-  keys = list(d.keys())[:5]
-  parts = [f'{k}={d[k]}' for k in keys if isinstance(d[k], (int, float, str))]
-  print(', '.join(parts[:3]))
-except Exception as e:
-  print('(parse error)')
-" 2>/dev/null || echo "(no summary)")
+    with open(sys.argv[1], encoding="utf-8") as f:
+        data = json.load(f)
+    keys = list(data.keys())[:5]
+    parts = [f"{key}={data[key]}" for key in keys if isinstance(data[key], (int, float, str))]
+    print(", ".join(parts[:3]))
+except Exception:
+    print("(parse error)")
+' "$EVAL_JSON" 2>/dev/null || echo "(no summary)")
 
     EXP_CONTENT=$(mktemp)
     ax_get_section "$EXPLOG" "experiment-log" \
       | grep -v '^_No experiments recorded yet' > "$EXP_CONTENT" || true
     {
       printf '<!-- entry:%s -->\n' "$ENTRY_ID"
-      printf '- **%s** eval_results.json: %s\n' "$FILE_DATE" "$SUMMARY"
+      printf -- '- **%s** eval_results.json: %s\n' "$FILE_DATE" "$SUMMARY"
     } >> "$EXP_CONTENT"
     ax_replace_section "$EXPLOG" "experiment-log" "$EXP_CONTENT"
     rm -f "$EXP_CONTENT"

@@ -21,6 +21,24 @@ command -v jq >/dev/null 2>&1 || { echo "ax: jq required" >&2; exit 1; }
 # shellcheck source=../lib/ax-utils.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/ax-utils.sh"
 
+file_mtime() {
+  if stat -f %m "$1" >/dev/null 2>&1; then
+    stat -f %m "$1"
+  else
+    stat -c %Y "$1"
+  fi
+}
+
+date_from_epoch() {
+  if date -u -r "$1" +%Y-%m-%d >/dev/null 2>&1; then
+    date -u -r "$1" +%Y-%m-%d
+  elif date -u -d "@$1" +%Y-%m-%d >/dev/null 2>&1; then
+    date -u -d "@$1" +%Y-%m-%d
+  else
+    date -u +%Y-%m-%d
+  fi
+}
+
 # ── Active Context from mission-state.json ────────────────────────────────────
 MISSION_FILE="$OMC_STATE/mission-state.json"
 if [ -f "$MISSION_FILE" ]; then
@@ -64,8 +82,7 @@ SUCCEEDED=$(jq -r 'select(.event == "agent_stop" and .success == true) | .agent_
 FAILED=$(jq -r 'select(.event == "agent_stop" and .success == false) | .agent_type' \
   "$REPLAY_FILE" 2>/dev/null | wc -l | tr -d ' ')
 
-FILE_DATE=$(date -d "@$(stat -c %Y "$REPLAY_FILE" 2>/dev/null || echo 0)" +%Y-%m-%d 2>/dev/null \
-  || date +%Y-%m-%d)
+FILE_DATE=$(date_from_epoch "$(file_mtime "$REPLAY_FILE" 2>/dev/null || echo 0)")
 
 STATUS_TAG=""
 [ "$FAILED" -gt 0 ] && STATUS_TAG=" (${FAILED} failed)"
