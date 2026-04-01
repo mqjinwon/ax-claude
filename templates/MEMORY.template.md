@@ -17,16 +17,6 @@ _No overrides — using global skill-routing.yaml._
 _No sessions recorded yet._
 <!-- END:session-history -->
 
-## Research Notes
-<!-- BEGIN:research-notes -->
-_No research notes yet._
-<!-- END:research-notes -->
-
-## Decisions & Rationale
-<!-- BEGIN:decisions -->
-_No decisions recorded yet._
-<!-- END:decisions -->
-
 ## Open Problems
 <!-- BEGIN:open-problems -->
 _No open problems recorded yet._
