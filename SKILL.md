@@ -22,7 +22,18 @@ Run this bash block first to load project context:
 ```bash
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
-ROUTING="$HOME/.ax/routing/skill-routing.yaml"
+# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
+if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
+  PLUGIN_ROOT="$HOME/.ax"
+elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
+  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
+  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
+else
+  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+fi
+ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
 PROJECT_NAME=$(basename "$PROJECT_ROOT")
 echo "PROJECT=$PROJECT_NAME"
 echo "PROJECT_ROOT=$PROJECT_ROOT"
@@ -54,7 +65,18 @@ Determine mode from the user's input AFTER the `/ax` command:
 Show a structured context summary. Extract sections from MEMORY.md using bash:
 
 ```bash
-source "$HOME/.ax/lib/ax-utils.sh"
+# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
+if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
+  PLUGIN_ROOT="$HOME/.ax"
+elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
+  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
+  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
+else
+  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+fi
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 echo "=== ACTIVE ==="
@@ -100,16 +122,27 @@ The user described a task. Find the best canonical skill.
 Run this bash to check triggers from skill-routing.yaml:
 
 ```bash
-ROUTING="$HOME/.ax/routing/skill-routing.yaml"
+# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
+if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
+  PLUGIN_ROOT="$HOME/.ax"
+elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
+  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
+  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
+else
+  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+fi
+export ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
 INPUT="<user's full input, lowercased>"
 
 # Extract trigger lists per category and test against input
 # Output: MATCH=<category> if found, MATCH= if not found
 python3 - << 'PYEOF'
-import yaml, sys, re
+import yaml, sys, os
 
-import os
-with open(os.path.expanduser("~/.ax/routing/skill-routing.yaml")) as f:
+ROUTING_PATH = os.environ.get("ROUTING") or os.path.expanduser("~/.ax/routing/skill-routing.yaml")
+with open(ROUTING_PATH) as f:
     data = yaml.safe_load(f)
 
 inp = """<user input lowercased>"""
@@ -164,7 +197,18 @@ Extract everything after `learn ` as the insight.
 ### Step 1: Write insight to MEMORY.md
 
 ```bash
-source "$HOME/.ax/lib/ax-utils.sh"
+# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
+if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
+  PLUGIN_ROOT="$HOME/.ax"
+elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
+  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
+  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
+else
+  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+fi
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 DATE=$(date +%Y-%m-%d)
