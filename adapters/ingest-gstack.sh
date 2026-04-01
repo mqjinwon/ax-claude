@@ -23,10 +23,16 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/ax-utils.sh"
 # eureka.jsonl may be pretty-printed — use jq -c to emit one object per line
 EUREKA="$HOME/.gstack/analytics/eureka.jsonl"
 if [ -f "$EUREKA" ]; then
-  mapfile -t EXISTING_IDS < <(ax_get_entry_ids "$MEMORY" "decisions")
+  # v1.4+: split memory — write to decisions.md if it exists, else MEMORY.md
+  DECISIONS_TARGET="$PROJECT_ROOT/.ax/memory/decisions.md"
+  if [ ! -f "$DECISIONS_TARGET" ]; then
+    DECISIONS_TARGET="$MEMORY"
+  fi
+
+  mapfile -t EXISTING_IDS < <(ax_get_entry_ids "$DECISIONS_TARGET" "decisions")
 
   CONTENT_FILE=$(mktemp)
-  ax_get_section "$MEMORY" "decisions" \
+  ax_get_section "$DECISIONS_TARGET" "decisions" \
     | grep -v '^_No decisions recorded yet' > "$CONTENT_FILE" || true
 
   NEW_COUNT=0
@@ -52,7 +58,7 @@ if [ -f "$EUREKA" ]; then
     if [ ! -s "$CONTENT_FILE" ]; then
       printf '_No decisions recorded yet.\n' > "$CONTENT_FILE"
     fi
-    ax_replace_section "$MEMORY" "decisions" "$CONTENT_FILE"
+    ax_replace_section "$DECISIONS_TARGET" "decisions" "$CONTENT_FILE"
   fi
   rm -f "$CONTENT_FILE"
 fi

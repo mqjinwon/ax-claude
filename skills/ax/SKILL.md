@@ -1,6 +1,6 @@
 ---
 name: ax
-version: 1.1.0
+version: 1.4.0
 description: |
   AX Personal Agent Control Plane.
   /ax          → resume: show session context from MEMORY.md
