@@ -17,7 +17,7 @@ MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 command -v jq >/dev/null 2>&1 || { echo "ax: jq required" >&2; exit 1; }
 
 # shellcheck source=../lib/ax-utils.sh
-source "$HOME/.ax/lib/ax-utils.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/ax-utils.sh"
 
 # ── Decisions & Rationale from eureka.jsonl ──────────────────────────────────
 # eureka.jsonl may be pretty-printed — use jq -c to emit one object per line

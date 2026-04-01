@@ -24,9 +24,12 @@ fi
 
 LOCAL_MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 
+ADAPTER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PLUGIN_ROOT="$(cd "$ADAPTER_DIR/.." && pwd)"
+
 # Bootstrap MEMORY.md from template on first run
 if [ ! -f "$LOCAL_MEMORY" ]; then
-  TEMPLATE="$HOME/.ax/templates/MEMORY.template.md"
+  TEMPLATE="$PLUGIN_ROOT/templates/MEMORY.template.md"
   [ -f "$TEMPLATE" ] || exit 0
   mkdir -p "$(dirname "$LOCAL_MEMORY")"
   SLUG=$(basename "$PROJECT_ROOT")
@@ -39,7 +42,7 @@ mkdir -p "$(dirname "$LOCKFILE")"
 
 (
   flock -n 9 || exit 0
-  "$HOME/.ax/adapters/ingest-gstack.sh"   "$PROJECT_ROOT"
-  "$HOME/.ax/adapters/ingest-omc.sh"      "$PROJECT_ROOT"
-  "$HOME/.ax/adapters/ingest-research.sh" "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-gstack.sh"   "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-omc.sh"      "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-research.sh" "$PROJECT_ROOT"
 ) 9>"$LOCKFILE"

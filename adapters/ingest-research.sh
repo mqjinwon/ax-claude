@@ -21,7 +21,7 @@ MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 [ -f "$MEMORY" ] || exit 0
 
 # shellcheck source=../lib/ax-utils.sh
-source "$HOME/.ax/lib/ax-utils.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/ax-utils.sh"
 
 # File → (label, section) mapping
 declare -A RESEARCH_FILES=(

@@ -1,0 +1,20 @@
+{
+  "name": "ax-claude",
+  "version": "1.0.0",
+  "description": "Personal Agent Control Plane for Claude Code",
+  "author": {
+    "name": "mqjinwon"
+  },
+  "repository": "https://github.com/mqjinwon/ax-claude",
+  "homepage": "https://github.com/mqjinwon/ax-claude",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "plugin",
+    "memory",
+    "routing",
+    "personal"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}

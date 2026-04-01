@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Resolve plugin root regardless of install location (git clone or plugin cache)
+_SCRIPT="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+PLUGIN_ROOT="$(cd "$(dirname "$_SCRIPT")/.." && pwd)"
+
 COMMAND="${1:-help}"
 
 case "$COMMAND" in
@@ -36,7 +40,7 @@ claude_project_id: ${CLAUDE_PROJECT_ID}
 EOF
 
     # Initialize MEMORY.md from template
-    TEMPLATE="$HOME/.ax/templates/MEMORY.template.md"
+    TEMPLATE="$PLUGIN_ROOT/templates/MEMORY.template.md"
     if [ ! -f "$TEMPLATE" ]; then
       echo "ERROR: template not found at $TEMPLATE" >&2; exit 1
     fi
@@ -64,12 +68,12 @@ EOF
     echo "  Run     : ax ingest   ← manual trigger to populate MEMORY.md now"
     echo ""
     echo "  PATH    : add to ~/.bashrc or ~/.zshrc:"
-    echo "            export PATH=\"\$HOME/.ax/bin:\$PATH\""
+    echo "            export PATH=\"$PLUGIN_ROOT/bin:\$PATH\""
     ;;
 
   ingest)
     # Manual trigger — useful to test without waiting for session end
-    SCRIPT="$HOME/.ax/adapters/ax-ingest.sh"
+    SCRIPT="$PLUGIN_ROOT/adapters/ax-ingest.sh"
     [ -x "$SCRIPT" ] || { echo "ERROR: $SCRIPT not found or not executable" >&2; exit 1; }
     PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
     jq -n --arg cwd "$PROJECT_ROOT" '{"cwd": $cwd}' | "$SCRIPT"
@@ -101,18 +105,24 @@ EOF
     ;;
 
   upgrade)
-    AX_HOME="$HOME/.ax"
-    if [ ! -d "$AX_HOME/.git" ]; then
+    # Plugin install: delegate to Claude plugin system
+    if [[ "$PLUGIN_ROOT" == *"/.claude/plugins/cache/"* ]]; then
+      echo "ax: installed as Claude plugin"
+      echo "    Use: /plugin install ax-claude"
+      exit 0
+    fi
+    # Legacy git clone install
+    if [ ! -d "$PLUGIN_ROOT/.git" ]; then
       echo "ax: not a git repo — reinstall manually"
-      echo "    git clone <repo-url> ~/.ax && ~/.ax/setup"
+      echo "    git clone https://github.com/mqjinwon/ax-claude ~/.ax && ~/.ax/setup"
       exit 1
     fi
     echo "ax: pulling latest..."
-    git -C "$AX_HOME" pull
+    git -C "$PLUGIN_ROOT" pull
     echo "ax: re-running setup..."
-    "$AX_HOME/setup"
+    "$PLUGIN_ROOT/setup"
     echo ""
-    echo "ax: upgraded to v$(tr -d '[:space:]' < "$AX_HOME/VERSION")"
+    echo "ax: upgraded to v$(tr -d '[:space:]' < "$PLUGIN_ROOT/VERSION")"
     ;;
 
   help|--help|-h|*)

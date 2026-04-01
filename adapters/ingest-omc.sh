@@ -19,7 +19,7 @@ OMC_STATE="$PROJECT_ROOT/.omc/state"
 command -v jq >/dev/null 2>&1 || { echo "ax: jq required" >&2; exit 1; }
 
 # shellcheck source=../lib/ax-utils.sh
-source "$HOME/.ax/lib/ax-utils.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/ax-utils.sh"
 
 # ── Active Context from mission-state.json ────────────────────────────────────
 MISSION_FILE="$OMC_STATE/mission-state.json"

@@ -1,13 +1,20 @@
 #!/usr/bin/env bash
 # AX Plugin — uninstall
-# Removes the skill symlink and SessionEnd hook.
-# Does NOT remove ~/.ax/ (preserves your data).
+# For plugin installs: use /plugin uninstall ax-claude in Claude Code.
+# This script handles legacy (git clone) uninstall only.
 
 set -euo pipefail
 
-echo "AX — uninstalling..."
+echo "AX — uninstalling (legacy mode)..."
+echo ""
+echo "  Note: If installed via plugin marketplace, use:"
+echo "        /plugin uninstall ax-claude"
+echo "        This removes skills, hooks, and the plugin cache automatically."
+echo ""
 
-# ── Remove skill symlink ──────────────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# ── Remove skill symlink (legacy only) ───────────────────────────────────────
 SKILL_LINK="$HOME/.claude/skills/ax/SKILL.md"
 if [ -L "$SKILL_LINK" ]; then
   rm "$SKILL_LINK"
@@ -17,9 +24,9 @@ else
   echo "  Skill   : not found (skipped)"
 fi
 
-# ── Remove SessionEnd hook ────────────────────────────────────────────────────
+# ── Remove SessionEnd hook (legacy only) ─────────────────────────────────────
 SETTINGS="$HOME/.claude/settings.json"
-HOOK_CMD="~/.ax/adapters/ax-ingest.sh"
+HOOK_CMD="$SCRIPT_DIR/adapters/ax-ingest.sh"
 
 if [ -f "$SETTINGS" ] && command -v jq >/dev/null 2>&1; then
   PRESENT=$(jq -r --arg cmd "$HOOK_CMD" '
@@ -44,5 +51,5 @@ fi
 
 echo ""
 echo "AX uninstalled."
-echo "Your ~/.ax/ directory and project .ax/ data are preserved."
-echo "To fully remove: rm -rf ~/.ax/"
+echo "Your project .ax/ data directories are preserved."
+echo "To remove all data: find . -type d -name '.ax' -exec rm -rf {} +"
