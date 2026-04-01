@@ -29,13 +29,11 @@ if [ -f "$EUREKA" ]; then
     DECISIONS_TARGET="$MEMORY"
   fi
 
-  mapfile -t EXISTING_IDS < <(ax_get_entry_ids "$DECISIONS_TARGET" "decisions")
-
   CONTENT_FILE=$(mktemp)
   ax_get_section "$DECISIONS_TARGET" "decisions" \
     | grep -v '^_No decisions recorded yet' > "$CONTENT_FILE" || true
 
-  NEW_COUNT=0
+  CHANGED=false
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     TS=$(printf '%s' "$line" | jq -r '.ts // empty' 2>/dev/null || true)
@@ -44,35 +42,28 @@ if [ -f "$EUREKA" ]; then
     [ -z "$TS" ] || [ -z "$INSIGHT" ] && continue
 
     ENTRY_ID="$(printf '%s' "$TS" | tr -cd '0-9' | cut -c1-12)-eureka"
-    printf '%s\n' "${EXISTING_IDS[@]+"${EXISTING_IDS[@]}"}" | grep -qF "$ENTRY_ID" && continue
+    grep -qF "entry:${ENTRY_ID}" "$DECISIONS_TARGET" 2>/dev/null && continue
 
     DATE=$(printf '%s' "$TS" | cut -c1-10)
     {
       printf '<!-- entry:%s -->\n' "$ENTRY_ID"
       printf '**%s** (`%s`): %s\n\n' "$DATE" "$SKILL" "$INSIGHT"
     } >> "$CONTENT_FILE"
-    NEW_COUNT=$((NEW_COUNT + 1))
+    CHANGED=true
   done < <(jq -c '.' "$EUREKA" 2>/dev/null)
 
-  if [ "$NEW_COUNT" -gt 0 ] || [ -s "$CONTENT_FILE" ]; then
-    if [ ! -s "$CONTENT_FILE" ]; then
-      printf '_No decisions recorded yet.\n' > "$CONTENT_FILE"
-    fi
-    ax_replace_section "$DECISIONS_TARGET" "decisions" "$CONTENT_FILE"
-  fi
+  $CHANGED && ax_replace_section "$DECISIONS_TARGET" "decisions" "$CONTENT_FILE"
   rm -f "$CONTENT_FILE"
 fi
 
 # ── Session History from skill-usage.jsonl (last 10) ─────────────────────────
 USAGE="$HOME/.gstack/analytics/skill-usage.jsonl"
 if [ -f "$USAGE" ]; then
-  mapfile -t EXISTING_IDS < <(ax_get_entry_ids "$MEMORY" "session-history")
-
   CONTENT_FILE=$(mktemp)
   ax_get_section "$MEMORY" "session-history" \
     | grep -v '^_No sessions recorded yet' > "$CONTENT_FILE" || true
 
-  NEW_COUNT=0
+  CHANGED=false
   while IFS= read -r line; do
     [ -z "$line" ] && continue
     TS=$(printf '%s' "$line" | jq -r '.ts // empty' 2>/dev/null || true)
@@ -80,7 +71,7 @@ if [ -f "$USAGE" ]; then
     [ -z "$TS" ] || [ -z "$SKILL" ] && continue
 
     ENTRY_ID="$(printf '%s' "$TS" | tr -cd '0-9' | cut -c1-12)-skill"
-    printf '%s\n' "${EXISTING_IDS[@]+"${EXISTING_IDS[@]}"}" | grep -qF "$ENTRY_ID" && continue
+    grep -qF "entry:${ENTRY_ID}" "$MEMORY" 2>/dev/null && continue
 
     OUTCOME=$(printf '%s' "$line" | jq -r '.outcome // "-"' 2>/dev/null || true)
     REPO=$(printf '%s' "$line" | jq -r '.repo // ""' 2>/dev/null || true)
@@ -96,14 +87,9 @@ if [ -f "$USAGE" ]; then
       # Use printf -- to prevent leading '-' in format from being parsed as option
       printf -- '- **%s** `/%s`%s: %s\n' "$DATE" "$SKILL" "$DETAIL" "$OUTCOME"
     } >> "$CONTENT_FILE"
-    NEW_COUNT=$((NEW_COUNT + 1))
+    CHANGED=true
   done < <(tail -15 "$USAGE")
 
-  if [ "$NEW_COUNT" -gt 0 ] || [ -s "$CONTENT_FILE" ]; then
-    if [ ! -s "$CONTENT_FILE" ]; then
-      printf '_No sessions recorded yet.\n' > "$CONTENT_FILE"
-    fi
-    ax_replace_section "$MEMORY" "session-history" "$CONTENT_FILE"
-  fi
+  $CHANGED && ax_replace_section "$MEMORY" "session-history" "$CONTENT_FILE"
   rm -f "$CONTENT_FILE"
 fi
