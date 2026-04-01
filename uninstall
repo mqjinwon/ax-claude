@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# AX Plugin — uninstall
+# Removes the skill symlink and SessionEnd hook.
+# Does NOT remove ~/.ax/ (preserves your data).
+
+set -euo pipefail
+
+echo "AX — uninstalling..."
+
+# ── Remove skill symlink ──────────────────────────────────────────────────────
+SKILL_LINK="$HOME/.claude/skills/ax/SKILL.md"
+if [ -L "$SKILL_LINK" ]; then
+  rm "$SKILL_LINK"
+  echo "  Skill   : removed $SKILL_LINK"
+  rmdir "$HOME/.claude/skills/ax" 2>/dev/null && echo "  Dir     : removed ~/.claude/skills/ax/" || true
+else
+  echo "  Skill   : not found (skipped)"
+fi
+
+# ── Remove SessionEnd hook ────────────────────────────────────────────────────
+SETTINGS="$HOME/.claude/settings.json"
+HOOK_CMD="~/.ax/adapters/ax-ingest.sh"
+
+if [ -f "$SETTINGS" ] && command -v jq >/dev/null 2>&1; then
+  PRESENT=$(jq -r '
+    .hooks.SessionEnd[]?.hooks[]? |
+    select(.command == "'"$HOOK_CMD"'") |
+    .command
+  ' "$SETTINGS" 2>/dev/null || true)
+
+  if [ -n "$PRESENT" ]; then
+    TMP=$(mktemp)
+    jq '
+      .hooks.SessionEnd[0].hooks |= map(select(.command != "'"$HOOK_CMD"'"))
+    ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+    echo "  Hook    : removed from $SETTINGS"
+  else
+    echo "  Hook    : not found in $SETTINGS (skipped)"
+  fi
+else
+  echo "  Hook    : skipped (jq unavailable or settings not found)"
+fi
+
+echo ""
+echo "AX uninstalled."
+echo "Your ~/.ax/ directory and project .ax/ data are preserved."
+echo "To fully remove: rm -rf ~/.ax/"

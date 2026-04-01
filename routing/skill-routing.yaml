@@ -1,0 +1,117 @@
+# AX Skill Routing — canonical skill per category
+# Used by /ax to recommend the right skill without ambiguity.
+#
+# 2-tier strategy:
+#   1st: keyword regex match (deterministic) — complex keywords first
+#   2nd: LLM semantic fallback if no match
+#
+# canonical: the one skill to use for this category (invoke this, nothing else)
+# aliases:   other skills that do similar things — deprecated in favor of canonical
+# trigger:   bash regex keywords; check complex ones before simple substrings
+
+categories:
+
+  debugging:
+    canonical: oh-my-claudecode:tracer
+    aliases:
+      - gstack-investigate
+      - superpowers:systematic-debugging
+      - oh-my-claudecode:debugger
+    trigger:
+      - "버그"
+      - "에러"
+      - "왜 안 되"
+      - "왜 안되"
+      - "오류"
+      - "crash"
+      - "failed"
+      - "broken"
+      - "exception"
+      - "traceback"
+      - "segfault"
+      - "not working"
+
+  planning:
+    canonical: gstack-office-hours
+    aliases:
+      - oh-my-claudecode:planner
+      - superpowers:writing-plans
+    trigger:
+      - "설계"
+      - "계획"
+      - "어떻게 만들"
+      - "어떻게 구현"
+      - "design"
+      - "architecture"
+      - "어떤 방향"
+      - "office hours"
+
+  code_review:
+    canonical: gstack-review
+    aliases:
+      - oh-my-claudecode:code-reviewer
+      - superpowers:code-reviewer
+    trigger:
+      - "리뷰"
+      - "코드 확인"
+      - "diff 봐줘"
+      - "review"
+      - "코드 검토"
+      - "pr 봐줘"
+
+  execution:
+    canonical: oh-my-claudecode:ultrawork
+    aliases:
+      - oh-my-claudecode:autopilot
+      - oh-my-claudecode:ralph
+    trigger:
+      - "자동으로 해줘"
+      - "구현해줘"
+      - "전부 다 해줘"
+      - "다 만들어줘"
+      - "끝까지 해줘"
+      - "멈추지 말고"
+      - "implement everything"
+      - "build it all"
+      - "do it all"
+      - "automate"
+
+  research_paper:
+    canonical: paper-writing
+    aliases:
+      - paper-plan
+      - paper-write
+    trigger:
+      - "논문 써"
+      - "논문 작성"
+      - "related work"
+      - "contribution"
+      - "paper writing"
+      - "manuscript"
+
+  research_lit:
+    canonical: arxiv
+    aliases:
+      - semantic-scholar
+    trigger:
+      - "arxiv"
+      - "논문 찾아"
+      - "선행연구"
+      - "SOTA"
+      - "state of the art"
+      - "관련 논문"
+      - "literature"
+
+  research_experiment:
+    canonical: oh-my-claudecode:scientist
+    aliases:
+      - ablation-planner
+      - experiment-plan
+    trigger:
+      - "실험"
+      - "ablation"
+      - "benchmark"
+      - "결과 분석"
+      - "evaluation"
+      - "metric"
+      - "성능 측정"

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# AX Plugin — install / reinstall
+# Usage: ~/.ax/setup
+#        or from fresh clone: ./setup
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION=$(cat "$SCRIPT_DIR/VERSION" 2>/dev/null | tr -d '[:space:]' || echo "unknown")
+
+echo "AX v${VERSION} — installing..."
+
+# ── Dependency check ─────────────────────────────────────────────────────────
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required." >&2
+  echo "       Install: sudo apt install jq   (Debian/Ubuntu)" >&2
+  echo "                brew install jq       (macOS)" >&2
+  exit 1
+fi
+
+# ── Make all scripts executable ──────────────────────────────────────────────
+find "$SCRIPT_DIR" -name "*.sh" -exec chmod +x {} \;
+chmod +x "$SCRIPT_DIR/bin/ax" 2>/dev/null || true
+
+# ── Install /ax skill ────────────────────────────────────────────────────────
+SKILL_DIR="$HOME/.claude/skills/ax"
+mkdir -p "$SKILL_DIR"
+ln -sf "$SCRIPT_DIR/SKILL.md" "$SKILL_DIR/SKILL.md"
+echo "  Skill   : $SKILL_DIR/SKILL.md -> $SCRIPT_DIR/SKILL.md"
+
+# ── Register SessionEnd hook (idempotent) ────────────────────────────────────
+SETTINGS="$HOME/.claude/settings.json"
+HOOK_CMD="~/.ax/adapters/ax-ingest.sh"
+
+if [ -f "$SETTINGS" ]; then
+  # Check if hook already registered (match on command value)
+  ALREADY=$(jq -r '
+    .hooks.SessionEnd[]?.hooks[]? |
+    select(.command == "'"$HOOK_CMD"'") |
+    .command
+  ' "$SETTINGS" 2>/dev/null || true)
+
+  if [ -z "$ALREADY" ]; then
+    TMP=$(mktemp)
+    jq '.hooks.SessionEnd[0].hooks += [{"type":"command","command":"~/.ax/adapters/ax-ingest.sh","timeout":15,"async":true}]' \
+      "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
+    echo "  Hook    : registered in $SETTINGS"
+  else
+    echo "  Hook    : already registered (skipped)"
+  fi
+else
+  echo "  Hook    : $SETTINGS not found — add hook manually:"
+  echo '           {"type":"command","command":"~/.ax/adapters/ax-ingest.sh","timeout":15,"async":true}'
+fi
+
+# ── PATH hint ────────────────────────────────────────────────────────────────
+echo ""
+echo "AX v${VERSION} installed."
+echo ""
+echo "  Add to PATH (add to ~/.bashrc or ~/.zshrc):"
+echo "    export PATH=\"\$HOME/.ax/bin:\$PATH\""
+echo ""
+echo "  Initialize a project:"
+echo "    ax init"

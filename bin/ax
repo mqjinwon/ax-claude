@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# ax — Personal Agent Control Plane CLI
+# Commands: init, status, ingest, help
+
+set -euo pipefail
+
+COMMAND="${1:-help}"
+
+case "$COMMAND" in
+  init)
+    # Dependency check
+    command -v jq >/dev/null 2>&1 || {
+      echo "ERROR: jq is required. Install with: sudo apt install jq" >&2; exit 1
+    }
+
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    AX_DIR="$PROJECT_ROOT/.ax"
+    MEMORY_DIR="$AX_DIR/memory"
+
+    if [ -f "$AX_DIR/config.yaml" ]; then
+      echo "ax: already initialized at $AX_DIR"
+      exit 0
+    fi
+
+    mkdir -p "$MEMORY_DIR"
+
+    # Derive stable identifiers
+    SLUG=$(basename "$PROJECT_ROOT")
+    # Claude encodes project path by replacing / and _ with - (keeps leading -)
+    CLAUDE_PROJECT_ID=$(printf '%s' "$PROJECT_ROOT" | tr '/_' '--')
+
+    # Write config (no yq dependency — plain text)
+    cat > "$AX_DIR/config.yaml" << EOF
+project_slug: ${SLUG}
+claude_project_id: ${CLAUDE_PROJECT_ID}
+EOF
+
+    # Initialize MEMORY.md from template
+    TEMPLATE="$HOME/.ax/templates/MEMORY.template.md"
+    if [ ! -f "$TEMPLATE" ]; then
+      echo "ERROR: template not found at $TEMPLATE" >&2; exit 1
+    fi
+    sed "s/{{project_slug}}/$SLUG/g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
+
+    # Symlink into Claude's native memory path
+    CLAUDE_MEM_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}/memory"
+    mkdir -p "$CLAUDE_MEM_DIR"
+
+    if [ -f "$CLAUDE_MEM_DIR/MEMORY.md" ] && [ ! -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
+      echo "ax: backing up existing MEMORY.md → MEMORY.md.bak"
+      mv "$CLAUDE_MEM_DIR/MEMORY.md" "$CLAUDE_MEM_DIR/MEMORY.md.bak"
+    fi
+
+    ln -sf "$MEMORY_DIR/MEMORY.md" "$CLAUDE_MEM_DIR/MEMORY.md"
+
+    echo "ax: initialized ✓"
+    echo "  Project : $SLUG"
+    echo "  Root    : $PROJECT_ROOT"
+    echo "  Memory  : $MEMORY_DIR/MEMORY.md"
+    echo "  Symlink : $CLAUDE_MEM_DIR/MEMORY.md → (above)"
+    echo ""
+    echo "  Hooks   : ax-ingest.sh is registered in ~/.claude/settings.json"
+    echo "  Run     : ax ingest   ← manual trigger to populate MEMORY.md now"
+    echo ""
+    echo "  PATH    : add to ~/.bashrc or ~/.zshrc:"
+    echo "            export PATH=\"\$HOME/.ax/bin:\$PATH\""
+    ;;
+
+  ingest)
+    # Manual trigger — useful to test without waiting for session end
+    SCRIPT="$HOME/.ax/adapters/ax-ingest.sh"
+    [ -x "$SCRIPT" ] || { echo "ERROR: $SCRIPT not found or not executable" >&2; exit 1; }
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    echo "{\"cwd\":\"$PROJECT_ROOT\"}" | "$SCRIPT"
+    echo "ax: ingest complete"
+    ;;
+
+  status)
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    CONFIG="$PROJECT_ROOT/.ax/config.yaml"
+    if [ ! -f "$CONFIG" ]; then
+      echo "ax: not initialized in $PROJECT_ROOT"
+      echo "    Run: ax init"
+      exit 1
+    fi
+    echo "ax status — $PROJECT_ROOT"
+    echo ""
+    cat "$CONFIG"
+    echo ""
+    MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
+    if [ -f "$MEMORY" ]; then
+      LINES=$(wc -l < "$MEMORY")
+      SYMLINK=$(readlink "$HOME/.claude/projects/$(grep 'claude_project_id' "$CONFIG" \
+        | awk '{print $2}')/memory/MEMORY.md" 2>/dev/null || echo "not linked")
+      echo "Memory  : $MEMORY ($LINES lines)"
+      echo "Symlink : $SYMLINK"
+    else
+      echo "Memory  : not found (run: ax ingest)"
+    fi
+    ;;
+
+  upgrade)
+    AX_HOME="$HOME/.ax"
+    if [ ! -d "$AX_HOME/.git" ]; then
+      echo "ax: not a git repo — reinstall manually"
+      echo "    git clone <repo-url> ~/.ax && ~/.ax/setup"
+      exit 1
+    fi
+    echo "ax: pulling latest..."
+    git -C "$AX_HOME" pull
+    echo "ax: re-running setup..."
+    "$AX_HOME/setup"
+    echo ""
+    echo "ax: upgraded to v$(cat "$AX_HOME/VERSION" | tr -d '[:space:]')"
+    ;;
+
+  help|--help|-h|*)
+    cat << 'EOF'
+ax — Personal Agent Control Plane
+
+Commands:
+  ax init      Initialize .ax/ for the current git project
+  ax ingest    Manually run ingest (populate MEMORY.md now)
+  ax status    Show project ax status
+  ax upgrade   Pull latest from git and re-run setup
+
+After init, ax-ingest.sh runs automatically on SessionEnd via Claude hooks.
+EOF
+    ;;
+esac

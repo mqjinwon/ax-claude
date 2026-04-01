@@ -1,0 +1,6 @@
+# Runtime lock files
+.ingest.lock
+*.lock
+
+# Project-local ax data (not part of plugin)
+# Each project has its own .ax/ — those are NOT this repo
