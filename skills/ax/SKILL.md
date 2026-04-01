@@ -40,12 +40,18 @@ echo "PROJECT=$PROJECT_NAME"
 echo "PROJECT_ROOT=$PROJECT_ROOT"
 echo "MEMORY_EXISTS=$([ -f "$MEMORY" ] && echo yes || echo no)"
 echo "ROUTING_EXISTS=$([ -f "$ROUTING" ] && echo yes || echo no)"
+echo "RESEARCH_NOTES_EXISTS=$([ -f "$PROJECT_ROOT/.ax/memory/research-notes.md" ] && echo yes || echo no)"
+echo "EXPERIMENT_LOG_EXISTS=$([ -f "$PROJECT_ROOT/.ax/memory/experiment-log.md" ] && echo yes || echo no)"
+echo "DECISIONS_EXISTS=$([ -f "$PROJECT_ROOT/.ax/memory/decisions.md" ] && echo yes || echo no)"
 ```
 
 If `MEMORY_EXISTS=no`: tell user "This project is not ax-initialized. Run `ax init` first." and stop.
 
 If `MEMORY_EXISTS=yes`: read the full content of `$MEMORY`.
 If `ROUTING_EXISTS=yes`: read `$ROUTING`.
+If `RESEARCH_NOTES_EXISTS=yes`: store the path `$PROJECT_ROOT/.ax/memory/research-notes.md` as `$RESEARCH_NOTES`.
+If `EXPERIMENT_LOG_EXISTS=yes`: store the path `$PROJECT_ROOT/.ax/memory/experiment-log.md` as `$EXPERIMENT_LOG`.
+If `DECISIONS_EXISTS=yes`: store the path `$PROJECT_ROOT/.ax/memory/decisions.md` as `$DECISIONS`.
 
 ---
 
@@ -87,6 +93,12 @@ echo "=== OPEN PROBLEMS ==="
 ax_get_section "$MEMORY" "open-problems"
 echo "=== RECENT HISTORY ==="
 ax_get_section "$MEMORY" "session-history" | head -20
+echo "=== RESEARCH NOTES ==="
+[ -f "$PROJECT_ROOT/.ax/memory/research-notes.md" ] && \
+  ax_get_section "$PROJECT_ROOT/.ax/memory/research-notes.md" "research-notes" | head -10 || echo "(none)"
+echo "=== EXPERIMENT LOG ==="
+[ -f "$PROJECT_ROOT/.ax/memory/experiment-log.md" ] && \
+  ax_get_section "$PROJECT_ROOT/.ax/memory/experiment-log.md" "experiment-log" | head -10 || echo "(none)"
 echo "=== RECENT DECISIONS ==="
 ax_get_section "$MEMORY" "decisions" | head -15
 ```
@@ -104,6 +116,12 @@ OPEN PROBLEMS
 
 RECENT SESSIONS
 {session-history, last 3-5 bullet entries only}
+
+RESEARCH NOTES (last 3)
+{research-notes content, if exists}
+
+EXPERIMENT LOG (last 3)
+{experiment-log content, if exists}
 
 RECENT DECISIONS
 {decisions, last 2 entries only}
@@ -327,6 +345,25 @@ Aliases: {other skills that could also work, if any}
 **IMPORTANT**: Do NOT invoke the skill automatically. Just recommend it.
 The user decides which skill to run.
 
+### Step 4: Load topic file if relevant
+
+Based on the matched category, conditionally read the relevant topic file:
+
+| Category | Topic file to read |
+|----------|--------------------|
+| `research_lit`, `research_ideation`, `research_paper`, `research_full_pipeline` | `$RESEARCH_NOTES` (if exists) |
+| `research_experiment`, `result_analysis`, `gpu_compute`, `design_space` | `$EXPERIMENT_LOG` (if exists) |
+| `planning`, `debugging`, `code_review` | `$DECISIONS` (if exists) |
+
+Read the topic file now using the Read tool, and include a brief summary (last 5 entries) in your routing response under:
+
+```
+CONTEXT FROM {TOPIC_FILE_NAME}
+{brief summary}
+```
+
+If the topic file is empty or doesn't exist, skip silently.
+
 ---
 
 ## Learn Mode
@@ -352,6 +389,10 @@ fi
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
+# Use decisions.md if split memory is enabled
+if [ -f "$PROJECT_ROOT/.ax/memory/decisions.md" ]; then
+  MEMORY="$PROJECT_ROOT/.ax/memory/decisions.md"
+fi
 DATE=$(date +%Y-%m-%d)
 TS=$(date +%Y%m%d%H%M)
 ENTRY_ID="${TS}-manual"
