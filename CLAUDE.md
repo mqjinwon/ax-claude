@@ -2,7 +2,7 @@
 
 ## GitHub Workflow
 Flow: issue → worktree + branch → implement → PR → squash & merge → cleanup
-NEVER commit or push directly to main/master — no exceptions.
+NEVER commit or push directly to main — no exceptions.
 
 After squash & merge, always run cleanup:
 ```bash
