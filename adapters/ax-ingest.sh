@@ -43,6 +43,7 @@ source "$PLUGIN_ROOT/lib/ax-utils.sh"
 ax_ensure_topic_file "$PROJECT_ROOT" "research-notes" "$PLUGIN_ROOT/templates/RESEARCH_NOTES.template.md"
 ax_ensure_topic_file "$PROJECT_ROOT" "experiment-log" "$PLUGIN_ROOT/templates/EXPERIMENT_LOG.template.md"
 ax_ensure_topic_file "$PROJECT_ROOT" "decisions"      "$PLUGIN_ROOT/templates/DECISIONS.template.md"
+ax_ensure_topic_file "$PROJECT_ROOT" "study-notes"   "$PLUGIN_ROOT/templates/STUDY_NOTES.template.md"
 
 LOCKFILE="$PROJECT_ROOT/.ax/.ingest.lock"
 mkdir -p "$(dirname "$LOCKFILE")"
