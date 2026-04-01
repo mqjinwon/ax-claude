@@ -50,9 +50,7 @@ CONTENT_FILE=$(mktemp)
 ax_get_section "$RESEARCH_TARGET" "$RESEARCH_SECTION" \
   | grep -v '^_No research notes yet' > "$CONTENT_FILE" || true
 
-mapfile -t EXISTING_IDS < <(ax_get_entry_ids "$RESEARCH_TARGET" "$RESEARCH_SECTION")
-
-NEW_COUNT=0
+CHANGED=false
 
 for REL_PATH in "${!RESEARCH_FILES[@]}"; do
   FULL_PATH="$PROJECT_ROOT/$REL_PATH"
@@ -66,7 +64,7 @@ for REL_PATH in "${!RESEARCH_FILES[@]}"; do
   ENTRY_ID="${MTIME}-${FILE_SLUG}"
 
   # Skip if already ingested at this mtime
-  printf '%s\n' "${EXISTING_IDS[@]+"${EXISTING_IDS[@]}"}" | grep -qF "$ENTRY_ID" && continue
+  grep -qF "entry:${ENTRY_ID}" "$RESEARCH_TARGET" 2>/dev/null && continue
 
   # Extract first meaningful line (skip empty/heading lines)
   SUMMARY=$(grep -v '^#\|^$\|^---\|^==' "$FULL_PATH" 2>/dev/null | head -3 \
@@ -80,10 +78,10 @@ for REL_PATH in "${!RESEARCH_FILES[@]}"; do
     printf '<!-- entry:%s -->\n' "$ENTRY_ID"
     printf '%s\n' "- **${FILE_DATE}** ${LABEL} (\`${REL_PATH}\`, ${SIZE} lines): ${SUMMARY}"
   } >> "$CONTENT_FILE"
-  NEW_COUNT=$((NEW_COUNT + 1))
+  CHANGED=true
 done
 
-if [ "$NEW_COUNT" -gt 0 ]; then
+if $CHANGED; then
   ax_replace_section "$RESEARCH_TARGET" "$RESEARCH_SECTION" "$CONTENT_FILE"
 elif [ ! -s "$CONTENT_FILE" ]; then
   printf '_No research notes yet._\n' > "$CONTENT_FILE"
@@ -100,12 +98,10 @@ if [ -f "$EVAL_JSON" ]; then
 
   # Check against experiment-log.md existing IDs
   EXPLOG="$PROJECT_ROOT/.ax/memory/experiment-log.md"
-  if [ -f "$EXPLOG" ]; then
-    EXISTING_EXP_IDS=$(ax_get_entry_ids "$EXPLOG" "experiment-log" 2>/dev/null || true)
-    if ! printf '%s\n' "$EXISTING_EXP_IDS" | grep -qF "$ENTRY_ID" 2>/dev/null; then
-      FILE_DATE=$(date -d "@$MTIME" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
-      # Extract key metrics from JSON
-      SUMMARY=$(python3 -c "
+  if [ -f "$EXPLOG" ] && ! grep -qF "entry:${ENTRY_ID}" "$EXPLOG" 2>/dev/null; then
+    FILE_DATE=$(date -d "@$MTIME" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
+    # Extract key metrics from JSON
+    SUMMARY=$(python3 -c "
 import json, sys
 try:
   with open('$EVAL_JSON') as f:
@@ -117,15 +113,14 @@ except Exception as e:
   print('(parse error)')
 " 2>/dev/null || echo "(no summary)")
 
-      EXP_CONTENT=$(mktemp)
-      ax_get_section "$EXPLOG" "experiment-log" \
-        | grep -v '^_No experiments recorded yet' > "$EXP_CONTENT" || true
-      {
-        printf '<!-- entry:%s -->\n' "$ENTRY_ID"
-        printf '- **%s** eval_results.json: %s\n' "$FILE_DATE" "$SUMMARY"
-      } >> "$EXP_CONTENT"
-      ax_replace_section "$EXPLOG" "experiment-log" "$EXP_CONTENT"
-      rm -f "$EXP_CONTENT"
-    fi
+    EXP_CONTENT=$(mktemp)
+    ax_get_section "$EXPLOG" "experiment-log" \
+      | grep -v '^_No experiments recorded yet' > "$EXP_CONTENT" || true
+    {
+      printf '<!-- entry:%s -->\n' "$ENTRY_ID"
+      printf '- **%s** eval_results.json: %s\n' "$FILE_DATE" "$SUMMARY"
+    } >> "$EXP_CONTENT"
+    ax_replace_section "$EXPLOG" "experiment-log" "$EXP_CONTENT"
+    rm -f "$EXP_CONTENT"
   fi
 fi
