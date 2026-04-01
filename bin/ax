@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ax — Personal Agent Control Plane CLI
-# Commands: init, status, ingest, help
+# Commands: init, ingest, status, upgrade, help
 
 set -euo pipefail
 
@@ -111,7 +111,7 @@ EOF
     echo "ax: re-running setup..."
     "$AX_HOME/setup"
     echo ""
-    echo "ax: upgraded to v$(cat "$AX_HOME/VERSION" | tr -d '[:space:]')"
+    echo "ax: upgraded to v$(tr -d '[:space:]' < "$AX_HOME/VERSION")"
     ;;
 
   help|--help|-h|*)
