@@ -23,8 +23,15 @@ Run this bash block first to load project and study context:
 
 ```bash
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 
@@ -74,8 +81,15 @@ Determine mode from the user's input AFTER the `/ax-study` command:
 Read study-notes.md and show progress summary:
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -153,8 +167,15 @@ From the `notebook_describe` output, generate a prioritized learning sequence:
 ### Step 5: Initialize study-notes.md
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -212,8 +233,15 @@ Run /ax-study to resume anytime.
 ### Step 1: Read active notebook ID
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -254,8 +282,15 @@ Build a structured concept note:
 Save to NLM with `note` MCP tool, then update study-notes.md:
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -320,8 +355,15 @@ If yes: call `research_start` MCP tool with `notebook_id` and `query=topic`, the
 ### Step 4: Update study-notes.md
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
