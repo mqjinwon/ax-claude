@@ -18,6 +18,20 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
+# ── python3 + pyyaml (optional — /ax routing) ────────────────────────────────
+if command -v python3 >/dev/null 2>&1; then
+  if python3 -c "import yaml" 2>/dev/null; then
+    echo "  pyyaml  : OK"
+  else
+    echo "  pyyaml  : installing..."
+    pip3 install pyyaml --quiet 2>/dev/null \
+      || python3 -m pip install pyyaml --quiet 2>/dev/null \
+      || echo "  pyyaml  : install failed — /ax routing falls back to manual match"
+  fi
+else
+  echo "  python3 : not found — /ax routing falls back to manual match"
+fi
+
 # ── Make all scripts executable ──────────────────────────────────────────────
 find "$SCRIPT_DIR" -name "*.sh" -exec chmod +x {} \;
 chmod +x "$SCRIPT_DIR/bin/ax" 2>/dev/null || true
