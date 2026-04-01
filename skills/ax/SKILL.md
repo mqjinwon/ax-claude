@@ -130,10 +130,14 @@ Run the guide script and output its result:
 _AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
 PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-python3 "$PLUGIN_ROOT/bin/ax-guide.py" "$PLUGIN_ROOT/routing/skill-routing.yaml"
+if [ -f "$PLUGIN_ROOT/bin/ax-guide.py" ]; then
+  python3 "$PLUGIN_ROOT/bin/ax-guide.py" "$PLUGIN_ROOT/routing/skill-routing.yaml"
+else
+  echo "ax-guide.py not found — run: /plugin install ax-claude"
+fi
 ```
 
-If Python is unavailable, read `$ROUTING` and manually summarize the categories.
+If Python is unavailable or the script is missing, read `$ROUTING` (already loaded in Preamble) and manually summarize the categories.
 
 After the script output, append the static hierarchy section:
 
@@ -191,7 +195,12 @@ The user described a task. Find the best canonical skill.
 _AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
 PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-python3 "$PLUGIN_ROOT/bin/ax-route.py" "<user's full input>" "$PLUGIN_ROOT/routing/skill-routing.yaml"
+if [ -f "$PLUGIN_ROOT/bin/ax-route.py" ]; then
+  python3 "$PLUGIN_ROOT/bin/ax-route.py" "<user's full input>" "$PLUGIN_ROOT/routing/skill-routing.yaml"
+else
+  echo "MATCH="
+  echo "ax-route.py not found — run: /plugin install ax-claude"
+fi
 ```
 
 Replace `<user's full input>` with the actual input text before running.
