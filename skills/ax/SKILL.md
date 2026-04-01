@@ -193,7 +193,28 @@ The user described a task. Find the best canonical skill.
 ### Step 1: Keyword match (deterministic)
 
 ```bash
-if [ -f "$PLUGIN_ROOT/bin/ax-route.py" ]; then
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+_OVERRIDES=$(ax_get_section "$MEMORY" "routing-overrides" 2>/dev/null || true)
+_OVERRIDE_MATCH=""
+
+while IFS= read -r _OV_LINE; do
+  case "$_OV_LINE" in
+    "- \`"*)
+      _OV_PAT=$(printf '%s' "$_OV_LINE" | sed "s/^- \`//;s/\` →.*//")
+      _OV_SKILL=$(printf '%s' "$_OV_LINE" | sed "s/.*→ \`//;s/\`.*//")
+      if [ -n "$_OV_PAT" ] && printf '%s' "<user's full input>" | grep -qiF "$_OV_PAT"; then
+        _OVERRIDE_MATCH="$_OV_SKILL"
+        break
+      fi
+      ;;
+  esac
+done <<< "$_OVERRIDES"
+
+if [ -n "$_OVERRIDE_MATCH" ]; then
+  echo "MATCH=routing-override (project-local)"
+  echo "CANONICAL=$_OVERRIDE_MATCH"
+  echo "MODE=canonical"
+elif [ -f "$PLUGIN_ROOT/bin/ax-route.py" ]; then
   python3 "$PLUGIN_ROOT/bin/ax-route.py" "<user's full input>" "$PLUGIN_ROOT/routing/skill-routing.yaml"
 else
   echo "MATCH="
@@ -202,6 +223,7 @@ fi
 ```
 
 Replace `<user's full input>` with the actual input text before running.
+If `_OVERRIDE_MATCH` is non-empty (routing-override hit), skip Step 2 and proceed directly to Step 3 output.
 
 Output format (one per line, only present fields):
 ```
@@ -314,6 +336,43 @@ ax_get_section "$MEMORY" "decisions" \
 
 ax_replace_section "$MEMORY" "decisions" "$INSIGHT_FILE"
 rm -f "$INSIGHT_FILE"
+
+# Route override detection
+ROUTE_PATTERN=""; ROUTE_SKILL=""
+case "<INSERT_INSIGHT_HERE>" in
+  route:*)
+    _RB="<INSERT_INSIGHT_HERE>"
+    _RB="${_RB#route:}"
+    _RB="${_RB# }"
+    if printf '%s' "$_RB" | grep -q '→'; then
+      ROUTE_PATTERN="${_RB%%→*}"
+      ROUTE_SKILL="${_RB##*→}"
+    elif printf '%s' "$_RB" | grep -q '->'; then
+      ROUTE_PATTERN="${_RB%%->*}"
+      ROUTE_SKILL="${_RB##*->}"
+    fi
+    ROUTE_PATTERN=$(printf '%s' "$ROUTE_PATTERN" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    ROUTE_SKILL=$(printf '%s' "$ROUTE_SKILL" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+    ;;
+esac
+if [ -n "$ROUTE_PATTERN" ] && [ -n "$ROUTE_SKILL" ]; then
+  MAIN_MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
+  if grep -q 'BEGIN:routing-overrides' "$MAIN_MEMORY" 2>/dev/null; then
+    if grep -qF "- \`$ROUTE_PATTERN\`" "$MAIN_MEMORY" 2>/dev/null; then
+      echo "Routing override for '$ROUTE_PATTERN' already exists — skipping duplicate."
+    else
+      OVERRIDE_FILE=$(mktemp)
+      ax_get_section "$MAIN_MEMORY" "routing-overrides" \
+        | grep -v '^_No overrides' > "$OVERRIDE_FILE" || true
+      printf '- `%s` → `%s`\n' "$ROUTE_PATTERN" "$ROUTE_SKILL" >> "$OVERRIDE_FILE"
+      ax_replace_section "$MAIN_MEMORY" "routing-overrides" "$OVERRIDE_FILE"
+      rm -f "$OVERRIDE_FILE"
+      echo "Routing override added: '$ROUTE_PATTERN' → '$ROUTE_SKILL'"
+    fi
+  else
+    echo "Warning: routing-overrides section not found in $MAIN_MEMORY. Run 'ax init' to upgrade."
+  fi
+fi
 ```
 
 Replace `<INSERT_INSIGHT_HERE>` with the actual insight text before running (escape any special chars with `printf '%s'`).
@@ -322,3 +381,4 @@ Replace `<INSERT_INSIGHT_HERE>` with the actual insight text before running (esc
 
 Reply: "Recorded to `$MEMORY` → decisions section."
 Show the recorded entry so the user can verify it looks right.
+If the insight was a `route:` override, also confirm: "Routing override recorded to `$MAIN_MEMORY` → routing-overrides section."
