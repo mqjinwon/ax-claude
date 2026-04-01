@@ -313,3 +313,24 @@ categories:
       - "사이트 만들어"
       - "design consultation"
       - "웹 만들어"
+
+  # ── Study ────────────────────────────────────────────────────────────────────
+
+  study:
+    canonical: ax-study
+    aliases:
+      - notebooklm-study
+    trigger:
+      - "공부"
+      - "학습"
+      - "스터디"
+      - "study"
+      - "읽고 정리"
+      - "개념 정리"
+      - "문서 공부"
+      - "논문 읽기"
+      - "paper reading"
+      - "문서 분석"
+      - "deep dive 논문"
+      - "읽어야 할"
+    orchestrator_trigger: []
