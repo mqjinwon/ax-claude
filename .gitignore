@@ -4,3 +4,10 @@
 
 # Project-local ax data (not part of plugin)
 # Each project has its own .ax/ — those are NOT this repo
+.ax/
+
+# AI tool runtime directories (generated, not source)
+.omc/
+.superpowers/
+superpowers/
+.gstack/

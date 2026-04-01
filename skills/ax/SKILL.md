@@ -1,6 +1,6 @@
 ---
 name: ax
-version: 1.4.0
+version: 1.5.0
 description: |
   AX Personal Agent Control Plane.
   /ax          → resume: show session context from MEMORY.md
@@ -23,17 +23,10 @@ Run this bash block first to load project context:
 ```bash
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
-# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
-if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
-  PLUGIN_ROOT="$HOME/.ax"
-elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
-  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
-  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
-else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
-  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-fi
+# Resolve PLUGIN_ROOT: plugin cache (~/.claude/plugins) or git-clone (~/.ax)
+_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
 PROJECT_NAME=$(basename "$PROJECT_ROOT")
 echo "PROJECT=$PROJECT_NAME"
@@ -73,17 +66,9 @@ Determine mode from the user's input AFTER the `/ax` command:
 Show a structured context summary. Extract sections from MEMORY.md using bash:
 
 ```bash
-# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
-if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
-  PLUGIN_ROOT="$HOME/.ax"
-elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
-  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
-  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
-else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
-  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-fi
+_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
@@ -100,7 +85,9 @@ echo "=== EXPERIMENT LOG ==="
 [ -f "$PROJECT_ROOT/.ax/memory/experiment-log.md" ] && \
   ax_get_section "$PROJECT_ROOT/.ax/memory/experiment-log.md" "experiment-log" | head -10 || echo "(none)"
 echo "=== RECENT DECISIONS ==="
-ax_get_section "$MEMORY" "decisions" | head -15
+[ -f "$PROJECT_ROOT/.ax/memory/decisions.md" ] && \
+  ax_get_section "$PROJECT_ROOT/.ax/memory/decisions.md" "decisions" | head -15 || \
+  ax_get_section "$MEMORY" "decisions" | head -15
 ```
 
 Format the output for the user:
@@ -137,64 +124,18 @@ If everything is done, suggest starting fresh with `/ax <task description>`.
 
 User ran: `/ax learn` (no arguments).
 
-Read the routing YAML and output the full skill guide dynamically:
+Run the guide script and output its result:
 
 ```bash
-# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
-if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
-  PLUGIN_ROOT="$HOME/.ax"
-elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
-  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
-  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
-else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
-  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-fi
-export ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
-python3 - << 'PYEOF'
-import yaml, os
-
-ROUTING_PATH = os.environ.get("ROUTING") or os.path.expanduser("~/.ax/routing/skill-routing.yaml")
-with open(ROUTING_PATH) as f:
-    data = yaml.safe_load(f)
-
-hidden = set(data.get("hidden", []))
-cats = data.get("categories", {})
-
-print("=== AX Skill Guide ===\n")
-print("사용 방법")
-print("  /ax              → 세션 컨텍스트 요약 (resume)")
-print("  /ax <작업 설명>  → 적합한 스킬 추천 (routing)")
-print("  /ax learn        → 이 가이드")
-print("  /ax learn <내용> → 인사이트 저장 → MEMORY.md\n")
-
-print("─" * 60)
-print("라우팅 카테고리\n")
-for cat, info in cats.items():
-    canonical = info.get("canonical", "")
-    orchestrator = info.get("orchestrator", "")
-    triggers = info.get("trigger", [])[:3]
-    orch_triggers = info.get("orchestrator_trigger", [])[:2]
-    trigger_str = " · ".join(f'"{t}"' for t in triggers)
-    line = f"  {cat:<25} → {canonical}"
-    if orchestrator:
-        line += f"\n  {'':25}   (전체: {orchestrator})"
-    print(line)
-    if trigger_str:
-        print(f"  {'':25}   트리거: {trigger_str}")
-    if orch_triggers:
-        orch_str = " · ".join(f'"{t}"' for t in orch_triggers)
-        print(f"  {'':25}   전체트리거: {orch_str}")
-    print()
-
-print("─" * 60)
-print("숨김 처리된 스킬 (직접 호출은 가능)")
-print("  " + ", ".join(sorted(hidden)))
-PYEOF
+_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+python3 "$PLUGIN_ROOT/bin/ax-guide.py" "$PLUGIN_ROOT/routing/skill-routing.yaml"
 ```
 
-After running the script output, append the static hierarchy section:
+If Python is unavailable, read `$ROUTING` and manually summarize the categories.
+
+After the script output, append the static hierarchy section:
 
 ```
 ────────────────────────────────────────────────────────────
@@ -246,69 +187,28 @@ The user described a task. Find the best canonical skill.
 
 ### Step 1: Keyword match (deterministic)
 
-Run this bash to check triggers from skill-routing.yaml:
-
 ```bash
-# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
-if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
-  PLUGIN_ROOT="$HOME/.ax"
-elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
-  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
-  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
-else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
-  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-fi
-export ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
-INPUT="<user's full input, lowercased>"
+_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+python3 "$PLUGIN_ROOT/bin/ax-route.py" "<user's full input>" "$PLUGIN_ROOT/routing/skill-routing.yaml"
+```
 
-python3 - << 'PYEOF'
-import yaml, sys, os
+Replace `<user's full input>` with the actual input text before running.
 
-ROUTING_PATH = os.environ.get("ROUTING") or os.path.expanduser("~/.ax/routing/skill-routing.yaml")
-with open(ROUTING_PATH) as f:
-    data = yaml.safe_load(f)
-
-hidden = set(data.get("hidden", []))
-inp = """<user input lowercased>"""
-
-# Check orchestrator_trigger first (longer/more specific)
-for cat, info in data.get("categories", {}).items():
-    if info.get("canonical") in hidden:
-        continue
-    orch_triggers = sorted(info.get("orchestrator_trigger", []), key=len, reverse=True)
-    for t in orch_triggers:
-        if t.lower() in inp.lower():
-            print(f"MATCH={cat}")
-            print(f"CANONICAL={info.get('orchestrator', info['canonical'])}")
-            print(f"MODE=orchestrator")
-            sys.exit(0)
-
-# Then check canonical trigger
-for cat, info in data.get("categories", {}).items():
-    if info.get("canonical") in hidden:
-        continue
-    triggers = sorted(info.get("trigger", []), key=len, reverse=True)
-    for t in triggers:
-        if t.lower() in inp.lower():
-            print(f"MATCH={cat}")
-            print(f"CANONICAL={info['canonical']}")
-            orch = info.get("orchestrator", "")
-            if orch:
-                print(f"ORCHESTRATOR={orch}")
-            print(f"MODE=canonical")
-            sys.exit(0)
-
-print("MATCH=")
-PYEOF
+Output format (one per line, only present fields):
+```
+MATCH=<category>
+CANONICAL=<skill>
+MODE=orchestrator|canonical
+ORCHESTRATOR=<skill>   # only when MODE=canonical and orchestrator exists
 ```
 
 If Python is unavailable, do the keyword check mentally using the routing YAML you read.
 
-### Step 2: Semantic fallback (if no keyword match)
+### Step 2: Semantic fallback (if no keyword match or MATCH is empty)
 
-If Step 1 found no match, use your judgment:
+Use your judgment:
 - Is this about bugs/errors? → debugging
 - Is this about writing/planning code? → planning
 - Is this about checking code? → code_review
@@ -372,20 +272,12 @@ User ran: `/ax learn <insight text>`
 
 Extract everything after `learn ` as the insight.
 
-### Step 1: Write insight to MEMORY.md
+### Step 1: Write insight to decisions file
 
 ```bash
-# Resolve PLUGIN_ROOT: git-clone install (~/.ax) → ax in PATH → plugin cache
-if [ -f "$HOME/.ax/lib/ax-utils.sh" ]; then
-  PLUGIN_ROOT="$HOME/.ax"
-elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
-  _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
-  PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
-else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
-  PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
-fi
+_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
+PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
