@@ -55,6 +55,9 @@ run_ingest() {
   "$ADAPTER_DIR/ingest-research.sh" "$PROJECT_ROOT"
 }
 
+_AX_T0=0
+command -v date >/dev/null 2>&1 && _AX_T0=$(date +%s)
+
 if command -v flock >/dev/null 2>&1; then
   (
     flock -n 9 || exit 0
@@ -63,4 +66,16 @@ if command -v flock >/dev/null 2>&1; then
 elif mkdir "$LOCKDIR" 2>/dev/null; then
   trap 'rmdir "$LOCKDIR" 2>/dev/null || true' EXIT
   run_ingest
+fi
+
+if command -v date >/dev/null 2>&1; then
+  _AX_ELAPSED=$(( $(date +%s) - _AX_T0 ))
+  _AX_LOG_DIR="$HOME/.gstack/analytics"
+  if [ -d "$_AX_LOG_DIR" ]; then
+    printf '{"ts":"%s","project":"%s","duration_s":%d}\n' \
+      "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+      "$(basename "$PROJECT_ROOT")" \
+      "$_AX_ELAPSED" \
+      >> "$_AX_LOG_DIR/ax-ingest.log" 2>/dev/null || true
+  fi
 fi

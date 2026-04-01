@@ -103,6 +103,36 @@ Routing Mode는 카테고리에 따라 관련 topic 파일(decisions.md / resear
 
 `decisions.md`에 타임스탬프와 함께 기록 (v1.4+: decisions.md 별도 파일).
 
+### Observability
+
+AX는 세션 종료 시 ingest 실행 시간을 `~/.gstack/analytics/ax-ingest.log`에 JSONL 형식으로 기록합니다:
+
+```json
+{"ts":"2026-04-01T12:00:00Z","project":"my-project","duration_s":2}
+```
+
+`~/.gstack/analytics/` 디렉토리가 존재할 때만 기록됩니다. 없으면 no-op.
+
+### Project-level Routing Overrides
+
+특정 키워드에 대해 프로젝트별 skill 라우팅을 override할 수 있습니다:
+
+```
+/ax learn route: <keyword> → <skill>
+```
+
+예시:
+
+```
+/ax learn route: 하네스 → planning
+```
+
+이후 `/ax 하네스 엔지니어링 개선` 실행 시 global keyword 매칭 대신 `planning`으로 라우팅됩니다.
+
+Override는 `.ax/memory/MEMORY.md`의 `## Routing Overrides` 섹션에 저장됩니다. `skill-routing.yaml` keyword 매칭보다 우선 적용됩니다.
+
+동일한 override를 두 번 실행하면 "already exists" 메시지와 함께 중복 추가를 건너뜁니다.
+
 ### 문서 학습 (ax-study)
 
 NotebookLM과 연동해 프로젝트별 학습 공간을 만듭니다.
