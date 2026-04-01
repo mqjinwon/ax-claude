@@ -29,8 +29,12 @@ elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
   _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
   PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
 else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
   PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 fi
 ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
@@ -72,8 +76,12 @@ elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
   _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
   PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
 else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
   PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 fi
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
@@ -129,8 +137,12 @@ elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
   _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
   PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
 else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
   PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 fi
 export ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
@@ -204,8 +216,12 @@ elif AX_BIN=$(command -v ax 2>/dev/null) && [ -n "$AX_BIN" ]; then
   _AX_REAL="$(readlink -f "$AX_BIN" 2>/dev/null || echo "$AX_BIN")"
   PLUGIN_ROOT="$(cd "$(dirname "$_AX_REAL")/.." && pwd)"
 else
-  _CACHE_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-  PLUGIN_ROOT="${_CACHE_HIT%/lib/ax-utils.sh}"
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
   PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 fi
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
