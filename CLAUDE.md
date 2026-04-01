@@ -23,7 +23,10 @@ Scheme:
 - Significant changes (new features, behavior changes): bump minor → `0.x.0`
 - Small fixes / typos / docs: bump patch → `0.0.x`
 
+**README**: After every feature addition, update `README.md` with a user-facing usage guide — not internal implementation details.
+
 Pre-PR checklist (verify before `gh pr create`):
 - [ ] VERSION bumped
 - [ ] `.claude-plugin/plugin.json` version matches
 - [ ] `.claude-plugin/marketplace.json` version matches (both occurrences)
+- [ ] `README.md` updated if new feature added
