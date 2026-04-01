@@ -10,7 +10,7 @@
     {
       "name": "ax-claude",
       "description": "Unified personal plugin for Claude Code: auto session memory (MEMORY.md), /ax skill routing, and research output ingestion via SessionEnd hook.",
-      "version": "1.4.1",
+      "version": "1.5.0",
       "author": {
         "name": "mqjinwon"
       },
@@ -26,5 +26,5 @@
       ]
     }
   ],
-  "version": "1.4.1"
+  "version": "1.5.0"
 }
