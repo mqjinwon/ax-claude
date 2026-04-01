@@ -40,7 +40,7 @@ EOF
     if [ ! -f "$TEMPLATE" ]; then
       echo "ERROR: template not found at $TEMPLATE" >&2; exit 1
     fi
-    sed "s/{{project_slug}}/$SLUG/g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
+    sed "s|{{project_slug}}|$SLUG|g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
 
     # Symlink into Claude's native memory path
     CLAUDE_MEM_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}/memory"
