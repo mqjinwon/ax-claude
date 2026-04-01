@@ -67,3 +67,46 @@ ax_get_section() {
     in_s          { print }
   ' "$file" 2>/dev/null
 }
+
+# ax_ensure_topic_file PROJECT_ROOT TOPIC TEMPLATE_FILE
+# Bootstraps a topic file from template if it doesn't exist yet.
+ax_ensure_topic_file() {
+  local project_root="$1"
+  local topic="$2"      # e.g. "research-notes", "experiment-log", "decisions"
+  local template="$3"   # absolute path to template file
+  local topic_file="$project_root/.ax/memory/${topic}.md"
+
+  [ -f "$topic_file" ] && return 0
+  [ -f "$template" ] || return 1
+
+  local slug
+  slug=$(basename "$project_root")
+  local slug_escaped
+  slug_escaped=$(printf '%s' "$slug" | sed 's/[&\]/\\&/g')
+  sed "s/{{project_slug}}/$slug_escaped/g" "$template" > "$topic_file"
+}
+
+# ax_get_topic_section PROJECT_ROOT TOPIC SECTION
+# Reads a section from a topic file (research-notes.md, experiment-log.md, decisions.md).
+ax_get_topic_section() {
+  local project_root="$1"
+  local topic="$2"
+  local section="$3"
+  local topic_file="$project_root/.ax/memory/${topic}.md"
+
+  [ -f "$topic_file" ] || return 0
+  ax_get_section "$topic_file" "$section"
+}
+
+# ax_replace_topic_section PROJECT_ROOT TOPIC SECTION CONTENT_FILE
+# Replaces a section in a topic file.
+ax_replace_topic_section() {
+  local project_root="$1"
+  local topic="$2"
+  local section="$3"
+  local content_file="$4"
+  local topic_file="$project_root/.ax/memory/${topic}.md"
+
+  [ -f "$topic_file" ] || return 1
+  ax_replace_section "$topic_file" "$section" "$content_file"
+}
