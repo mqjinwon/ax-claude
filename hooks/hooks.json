@@ -1,5 +1,5 @@
 {
-  "description": "AX session memory ingestion on session end",
+  "description": "AX session memory ingestion on session end; write-guard on .ax/memory/",
   "hooks": {
     "SessionEnd": [
       {
@@ -10,6 +10,18 @@
             "command": "\"$CLAUDE_PLUGIN_ROOT\"/adapters/ax-ingest.sh",
             "timeout": 15,
             "async": true
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PLUGIN_ROOT\"/hooks/ax-write-guard.sh",
+            "timeout": 3
           }
         ]
       }
