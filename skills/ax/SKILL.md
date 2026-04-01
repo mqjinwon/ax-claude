@@ -24,8 +24,15 @@ Run this bash block first to load project context:
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
 # Resolve PLUGIN_ROOT: plugin cache (~/.claude/plugins) or git-clone (~/.ax)
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 ROUTING="$PLUGIN_ROOT/routing/skill-routing.yaml"
 PROJECT_NAME=$(basename "$PROJECT_ROOT")
@@ -66,8 +73,15 @@ Determine mode from the user's input AFTER the `/ax` command:
 Show a structured context summary. Extract sections from MEMORY.md using bash:
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -127,8 +141,15 @@ User ran: `/ax learn` (no arguments).
 Run the guide script and output its result:
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 if [ -f "$PLUGIN_ROOT/bin/ax-guide.py" ]; then
   python3 "$PLUGIN_ROOT/bin/ax-guide.py" "$PLUGIN_ROOT/routing/skill-routing.yaml"
@@ -192,8 +213,15 @@ The user described a task. Find the best canonical skill.
 ### Step 1: Keyword match (deterministic)
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 if [ -f "$PLUGIN_ROOT/bin/ax-route.py" ]; then
   python3 "$PLUGIN_ROOT/bin/ax-route.py" "<user's full input>" "$PLUGIN_ROOT/routing/skill-routing.yaml"
@@ -284,8 +312,15 @@ Extract everything after `learn ` as the insight.
 ### Step 1: Write insight to decisions file
 
 ```bash
-_AX_HIT=$(find "$HOME/.claude/plugins" -name "ax-utils.sh" 2>/dev/null | head -1)
-PLUGIN_ROOT="${_AX_HIT%/lib/ax-utils.sh}"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
 PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 source "$PLUGIN_ROOT/lib/ax-utils.sh"
 PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
