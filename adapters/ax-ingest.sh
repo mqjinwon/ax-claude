@@ -30,7 +30,8 @@ if [ ! -f "$LOCAL_MEMORY" ]; then
   [ -f "$TEMPLATE" ] || exit 0
   mkdir -p "$(dirname "$LOCAL_MEMORY")"
   SLUG=$(basename "$PROJECT_ROOT")
-  sed "s/{{project_slug}}/$SLUG/g" "$TEMPLATE" > "$LOCAL_MEMORY"
+  SLUG_ESCAPED=$(printf '%s' "$SLUG" | sed 's/[&\]/\\&/g')
+  sed "s/{{project_slug}}/$SLUG_ESCAPED/g" "$TEMPLATE" > "$LOCAL_MEMORY"
 fi
 
 LOCKFILE="$PROJECT_ROOT/.ax/.ingest.lock"

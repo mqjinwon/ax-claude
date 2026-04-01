@@ -7,6 +7,8 @@
 #   ~/.gstack/analytics/skill-usage.jsonl → ## Session History (last 10)
 
 set -euo pipefail
+CONTENT_FILE=""
+trap 'rm -f "${CONTENT_FILE:-}"' EXIT
 
 PROJECT_ROOT="${1:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"

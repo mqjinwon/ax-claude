@@ -48,14 +48,15 @@ HOOK_CMD="~/.ax/adapters/ax-ingest.sh"
 
 if [ -f "$SETTINGS" ]; then
   # Check if hook already registered (match on command value)
-  ALREADY=$(jq -r '
+  ALREADY=$(jq -r --arg cmd "$HOOK_CMD" '
     .hooks.SessionEnd[]?.hooks[]? |
-    select(.command == "'"$HOOK_CMD"'") |
+    select(.command == $cmd) |
     .command
   ' "$SETTINGS" 2>/dev/null || true)
 
   if [ -z "$ALREADY" ]; then
     TMP=$(mktemp)
+    trap 'rm -f "$TMP"' EXIT
     jq '.hooks.SessionEnd[0].hooks += [{"type":"command","command":"~/.ax/adapters/ax-ingest.sh","timeout":15,"async":true}]' \
       "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
     echo "  Hook    : registered in $SETTINGS"

@@ -40,7 +40,8 @@ EOF
     if [ ! -f "$TEMPLATE" ]; then
       echo "ERROR: template not found at $TEMPLATE" >&2; exit 1
     fi
-    sed "s|{{project_slug}}|$SLUG|g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
+    SLUG_ESCAPED=$(printf '%s' "$SLUG" | sed 's/[|&\]/\\&/g')
+    sed "s|{{project_slug}}|$SLUG_ESCAPED|g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
 
     # Symlink into Claude's native memory path
     CLAUDE_MEM_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}/memory"
@@ -71,7 +72,7 @@ EOF
     SCRIPT="$HOME/.ax/adapters/ax-ingest.sh"
     [ -x "$SCRIPT" ] || { echo "ERROR: $SCRIPT not found or not executable" >&2; exit 1; }
     PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    echo "{\"cwd\":\"$PROJECT_ROOT\"}" | "$SCRIPT"
+    jq -n --arg cwd "$PROJECT_ROOT" '{"cwd": $cwd}' | "$SCRIPT"
     echo "ax: ingest complete"
     ;;
 

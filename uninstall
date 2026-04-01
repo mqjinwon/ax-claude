@@ -22,16 +22,17 @@ SETTINGS="$HOME/.claude/settings.json"
 HOOK_CMD="~/.ax/adapters/ax-ingest.sh"
 
 if [ -f "$SETTINGS" ] && command -v jq >/dev/null 2>&1; then
-  PRESENT=$(jq -r '
+  PRESENT=$(jq -r --arg cmd "$HOOK_CMD" '
     .hooks.SessionEnd[]?.hooks[]? |
-    select(.command == "'"$HOOK_CMD"'") |
+    select(.command == $cmd) |
     .command
   ' "$SETTINGS" 2>/dev/null || true)
 
   if [ -n "$PRESENT" ]; then
     TMP=$(mktemp)
-    jq '
-      .hooks.SessionEnd[0].hooks |= map(select(.command != "'"$HOOK_CMD"'"))
+    trap 'rm -f "$TMP"' EXIT
+    jq --arg cmd "$HOOK_CMD" '
+      .hooks.SessionEnd[0].hooks |= map(select(.command != $cmd))
     ' "$SETTINGS" > "$TMP" && mv "$TMP" "$SETTINGS"
     echo "  Hook    : removed from $SETTINGS"
   else
