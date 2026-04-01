@@ -5,9 +5,32 @@
 #   1st: keyword regex match (deterministic) — complex keywords first
 #   2nd: LLM semantic fallback if no match
 #
-# canonical: the one skill to use for this category (invoke this, nothing else)
-# aliases:   other skills that do similar things — deprecated in favor of canonical
-# trigger:   bash regex keywords; check complex ones before simple substrings
+# Fields:
+#   canonical:            leaf skill for direct/partial invocation
+#   orchestrator:         full pipeline orchestrator (when user wants end-to-end)
+#   aliases:              other skills that do similar things
+#   trigger:              keywords → recommend canonical
+#   orchestrator_trigger: keywords → recommend orchestrator instead
+#   hidden:               skills excluded from /ax recommendations (still callable directly)
+
+# ── Hidden skills ────────────────────────────────────────────────────────────
+# These are excluded from /ax routing recommendations.
+# Users can still invoke them directly (e.g. /comm-lit-review).
+hidden:
+  - comm-lit-review        # communications domain only
+  - pixel-art              # unrelated to research workflow
+  - gstack-canary          # web ops only
+  - gstack-setup-deploy    # web ops only
+  - gstack-setup-browser-cookies  # web automation only
+  - gstack-connect-chrome  # web automation only
+  - gstack-retro           # team retro, not solo researcher
+  - gstack-cso             # team security mode
+  - gstack-guard           # team safety mode
+  - gstack-careful         # team safety mode
+  - gstack-freeze          # team safety mode
+  - gstack-unfreeze        # team safety mode
+
+# ── Categories ───────────────────────────────────────────────────────────────
 
 categories:
 
@@ -15,8 +38,8 @@ categories:
     canonical: oh-my-claudecode:tracer
     aliases:
       - gstack-investigate
+      - oh-my-claudecode:deep-dive
       - superpowers:systematic-debugging
-      - oh-my-claudecode:debugger
     trigger:
       - "버그"
       - "에러"
@@ -34,7 +57,7 @@ categories:
   planning:
     canonical: gstack-office-hours
     aliases:
-      - oh-my-claudecode:planner
+      - oh-my-claudecode:plan
       - superpowers:writing-plans
     trigger:
       - "설계"
@@ -76,42 +99,217 @@ categories:
       - "do it all"
       - "automate"
 
-  research_paper:
-    canonical: paper-writing
-    aliases:
-      - paper-plan
-      - paper-write
-    trigger:
-      - "논문 써"
-      - "논문 작성"
-      - "related work"
-      - "contribution"
-      - "paper writing"
-      - "manuscript"
+  # ── Research ─────────────────────────────────────────────────────────────
 
   research_lit:
-    canonical: arxiv
+    canonical: research-lit
+    orchestrator: idea-discovery-robot
     aliases:
+      - arxiv
       - semantic-scholar
     trigger:
-      - "arxiv"
       - "논문 찾아"
       - "선행연구"
+      - "문헌 조사"
+      - "arxiv"
       - "SOTA"
       - "state of the art"
       - "관련 논문"
       - "literature"
+    orchestrator_trigger:
+      - "아이디어 찾아"
+      - "연구 방향 잡아"
+      - "idea discovery"
+      - "방향 찾아줘"
+
+  research_ideation:
+    canonical: idea-creator
+    orchestrator: idea-discovery-robot
+    aliases:
+      - novelty-check
+      - research-refine
+    trigger:
+      - "아이디어 생각해"
+      - "novelty 확인"
+      - "새로운 방법"
+      - "idea 만들어"
+    orchestrator_trigger:
+      - "아이디어 찾아"
+      - "연구 방향"
+      - "idea discovery"
+      - "처음부터 아이디어"
 
   research_experiment:
-    canonical: oh-my-claudecode:scientist
+    canonical: run-experiment
+    orchestrator: experiment-bridge
     aliases:
-      - ablation-planner
-      - experiment-plan
+      - monitor-experiment
+      - training-check
+      - oh-my-claudecode:scientist
     trigger:
-      - "실험"
-      - "ablation"
-      - "benchmark"
+      - "실험 돌려"
+      - "학습 시작"
+      - "실험해줘"
+      - "run experiment"
+      - "훈련 시작"
+    orchestrator_trigger:
+      - "실험 계획부터"
+      - "설계하고 돌려"
+      - "실험 전체"
+      - "experiment bridge"
+
+  research_paper:
+    canonical: paper-write
+    orchestrator: paper-writing
+    aliases:
+      - paper-plan
+      - paper-compile
+    trigger:
+      - "논문 섹션 써"
+      - "introduction 써"
+      - "related work 써"
+      - "abstract 써"
+      - "method 써"
+    orchestrator_trigger:
+      - "논문 써"
+      - "논문 전체"
+      - "paper writing"
+      - "보고서 pdf"
+      - "논문 작성"
+
+  research_full_pipeline:
+    canonical: auto-review-loop
+    orchestrator: research-pipeline
+    aliases:
+      - auto-review-loop-llm
+    trigger:
+      - "review loop"
+      - "논문 개선"
+      - "reviewer 피드백"
+      - "auto review"
+    orchestrator_trigger:
+      - "처음부터 끝까지"
+      - "full pipeline"
+      - "아이디어부터 논문"
+      - "전체 연구 파이프라인"
+
+  result_analysis:
+    canonical: analyze-results
+    aliases:
+      - result-to-claim
+      - ablation-planner
+    trigger:
       - "결과 분석"
-      - "evaluation"
+      - "성능 비교"
+      - "ablation"
       - "metric"
+      - "그래프 그려"
+      - "evaluation"
       - "성능 측정"
+
+  gpu_compute:
+    canonical: vast-gpu
+    aliases:
+      - training-check
+      - system-profile
+    trigger:
+      - "gpu 빌려"
+      - "학습 서버"
+      - "vast"
+      - "훈련 모니터"
+      - "wandb"
+      - "학습 상태"
+
+  design_space:
+    canonical: dse-loop
+    trigger:
+      - "파라미터 탐색"
+      - "hyperparameter"
+      - "design space"
+      - "파라미터 최적화"
+      - "sweep"
+
+  # ── Documentation ────────────────────────────────────────────────────────
+
+  docs_academic:
+    canonical: paper-slides
+    aliases:
+      - paper-poster
+      - paper-illustration
+    trigger:
+      - "슬라이드 만들어"
+      - "발표 자료"
+      - "학회 발표"
+      - "conference slides"
+      - "beamer"
+    orchestrator_trigger:
+      - "포스터 만들어"
+      - "conference poster"
+
+  docs_technical:
+    canonical: mermaid-diagram
+    aliases:
+      - gstack-document-release
+    trigger:
+      - "다이어그램"
+      - "플로우차트"
+      - "아키텍처 그림"
+      - "diagram"
+      - "flowchart"
+      - "sequence diagram"
+    orchestrator_trigger:
+      - "코드 배포 후 문서"
+      - "docs 갱신"
+      - "document release"
+
+  docs_grant:
+    canonical: grant-proposal
+    trigger:
+      - "연구비"
+      - "과제 신청"
+      - "grant"
+      - "proposal"
+      - "NRF"
+      - "KAKENHI"
+      - "NSF"
+      - "기금 신청"
+
+  docs_format:
+    canonical: pdf
+    aliases:
+      - docx
+      - pptx
+      - xlsx
+    trigger:
+      - ".pdf"
+      - "pdf 파일"
+      - ".docx"
+      - "word 문서"
+      - ".pptx"
+      - "파워포인트"
+      - ".xlsx"
+      - "스프레드시트"
+
+  docs_final:
+    canonical: humanizer
+    trigger:
+      - "humanize"
+      - "ai 흔적"
+      - "논문 검수"
+      - "자연스럽게 고쳐"
+      - "ai 냄새 제거"
+
+  # ── Web / Side Projects ──────────────────────────────────────────────────
+
+  web_design:
+    canonical: gstack-design-consultation
+    aliases:
+      - gstack-design-review
+      - gstack-design-html
+      - gstack-design-shotgun
+    trigger:
+      - "웹 디자인"
+      - "UI 설계"
+      - "사이트 만들어"
+      - "design consultation"
+      - "웹 만들어"
