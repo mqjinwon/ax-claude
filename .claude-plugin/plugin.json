@@ -1,6 +1,6 @@
 {
   "name": "ax-claude",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Personal Agent Control Plane for Claude Code",
   "author": {
     "name": "mqjinwon"
