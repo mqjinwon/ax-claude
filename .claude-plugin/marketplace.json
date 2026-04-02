@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "ax-claude",
-  "description": "Personal Agent Control Plane for Claude Code — session memory, skill routing, research ingestion",
+  "description": "Personal Agent Control Plane for Claude Code \u2014 session memory, skill routing, research ingestion",
   "owner": {
     "name": "mqjinwon",
     "url": "https://github.com/mqjinwon"
@@ -10,7 +10,7 @@
     {
       "name": "ax-claude",
       "description": "Unified personal plugin for Claude Code: auto session memory (MEMORY.md), /ax skill routing, and research output ingestion via SessionEnd hook.",
-      "version": "1.10.0",
+      "version": "1.10.1",
       "author": {
         "name": "mqjinwon"
       },
@@ -26,5 +26,5 @@
       ]
     }
   ],
-  "version": "1.10.0"
+  "version": "1.10.1"
 }
