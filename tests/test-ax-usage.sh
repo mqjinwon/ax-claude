@@ -12,8 +12,7 @@ RESPONSE='{"five_hour":{"utilization":73.5,"resets_at":"2026-04-02T19:00:00Z"},"
 TMPF=$(mktemp)
 printf '%s' "$RESPONSE" > "$TMPF"
 PARSED=$(cat "$TMPF" | _ax_usage_parse_api_response 2>/dev/null)
-PCT=$(printf '%s' "$PARSED" | head -1)
-RESETS=$(printf '%s' "$PARSED" | tail -1)
+IFS=$'\t' read -r PCT RESETS <<< "$PARSED"
 rm -f "$TMPF"
 [ "$PCT" = "74" ] && ok "parse_api: rounds 73.5 → 74" || fail "parse_api: got $PCT"
 [ "$RESETS" = "2026-04-02T19:00:00Z" ] && ok "parse_api: resets_at" || fail "parse_api resets: $RESETS"
@@ -21,7 +20,7 @@ rm -f "$TMPF"
 # --- Test 2: parse API response with 100% ---
 RESPONSE2='{"five_hour":{"utilization":100.0,"resets_at":"2026-04-02T20:00:00Z"}}'
 PARSED2=$(printf '%s' "$RESPONSE2" | _ax_usage_parse_api_response 2>/dev/null)
-PCT2=$(printf '%s' "$PARSED2" | head -1)
+IFS=$'\t' read -r PCT2 _RESETS2 <<< "$PARSED2"
 [ "$PCT2" = "100" ] && ok "parse_api: 100% exact" || fail "parse_api 100: got $PCT2"
 
 # --- Test 3: local cache write + read ---
@@ -29,7 +28,7 @@ export _AX_USAGE_CACHE=$(mktemp)
 export _AX_USAGE_CACHE_TTL=60
 _ax_usage_write_local_cache "42" "2026-04-02T20:00:00Z"
 CACHED=$(_ax_usage_read_local_cache 2>/dev/null)
-CPCT=$(printf '%s' "$CACHED" | head -1)
+IFS=$'\t' read -r CPCT _CRESETS <<< "$CACHED"
 [ "$CPCT" = "42" ] && ok "local cache: read back pct" || fail "local cache: got $CPCT"
 rm -f "$_AX_USAGE_CACHE"
 
