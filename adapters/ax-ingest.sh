@@ -50,9 +50,10 @@ mkdir -p "$(dirname "$LOCKFILE")"
 LOCKDIR="${LOCKFILE}.d"
 
 run_ingest() {
-  "$ADAPTER_DIR/ingest-gstack.sh"   "$PROJECT_ROOT"
-  "$ADAPTER_DIR/ingest-omc.sh"      "$PROJECT_ROOT"
-  "$ADAPTER_DIR/ingest-research.sh" "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-gstack.sh"     "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-omc.sh"        "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-research.sh"   "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ax-memory-compact.sh" "$PROJECT_ROOT"
 }
 
 _AX_T0=0
