@@ -33,7 +33,7 @@ import sys, re
 path, key, default = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
   m = re.search(r'^\s*' + re.escape(key) + r'\s*:\s*(\S+)', open(path).read(), re.M)
-  print(m.group(1) if m else default)
+  print(int(m.group(1)) if m else int(default))
 except Exception: print(default)
 PY
 }
