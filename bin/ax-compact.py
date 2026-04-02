@@ -21,6 +21,10 @@ if len(sys.argv) != 5:
 topic_file, section = sys.argv[1], sys.argv[2]
 hard_cap, keep_recent = int(sys.argv[3]), int(sys.argv[4])
 
+if keep_recent >= hard_cap:
+    print(f"ax-compact: keep_recent ({keep_recent}) >= hard_cap ({hard_cap}), skipping", file=sys.stderr)
+    sys.exit(0)
+
 try:
     with open(topic_file) as f:
         content = f.read()
@@ -48,10 +52,6 @@ while i < len(parts):
     body = parts[i + 1] if i + 1 < len(parts) else ""
     entries.append((marker, body))
     i += 2
-
-if keep_recent >= hard_cap:
-    print(f"ax-compact: keep_recent ({keep_recent}) >= hard_cap ({hard_cap}), skipping", file=sys.stderr)
-    sys.exit(0)
 
 if len(entries) <= hard_cap:
     sys.exit(0)
@@ -87,9 +87,7 @@ for marker, body in to_compress:
     date_match = re.match(r"\*\*(\d{4}-\d{2}-\d{2})\*\*", first_line)
     if date_match:
         entry_date = date_match.group(1)
-        rest = first_line[date_match.end():].strip().lstrip(": ")
-        # Strip inline code/bold noise for readability
-        rest = re.sub(r"`[^`]*`", "", rest).strip().lstrip(": ")
+        rest = re.sub(r"`[^`]*`", "", first_line[date_match.end():]).strip().lstrip(": ")
         summaries.append(f"- [{entry_date}] {rest[:120]}")
     elif first_line.startswith("- "):
         summaries.append(first_line[:120])
