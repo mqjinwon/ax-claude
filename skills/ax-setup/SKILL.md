@@ -104,7 +104,54 @@ else
 fi
 ```
 
-## Step 5: Print summary
+## Step 5: Scan for deprecated command stubs
+
+Scan all installed plugin `commands/` directories for deprecated stubs. Write a skip rule to `~/.claude/CLAUDE.md` if not already present, so Claude never invokes them.
+
+```bash
+python3 << 'PYEOF'
+import os, glob, re
+
+# Scan for deprecated command stubs across all installed plugins
+deprecated = []
+for f in glob.glob(os.path.expanduser("~/.claude/plugins/cache/*/*/commands/*.md")):
+    try:
+        with open(f) as fh:
+            content = fh.read()
+    except Exception:
+        continue
+    if re.search(r'description:\s*["\']?Deprecated', content, re.IGNORECASE):
+        plugin = f.split(os.sep)[-4]  # e.g. superpowers
+        cmd = os.path.splitext(os.path.basename(f))[0]
+        repl_m = re.search(r'use (?:the )?([a-z][a-z0-9:_-]+)', content, re.IGNORECASE)
+        replacement = repl_m.group(1) if repl_m else "?"
+        deprecated.append((plugin, cmd, replacement))
+
+if deprecated:
+    print(f"Deprecated command stubs found ({len(deprecated)}):")
+    for plugin, cmd, replacement in deprecated:
+        print(f"  /{cmd}  →  use /{replacement}")
+else:
+    print("No deprecated command stubs found.")
+
+# Write skip rule to global CLAUDE.md if missing
+claude_md = os.path.expanduser("~/.claude/CLAUDE.md")
+rule = "## Skip Deprecated Skills"
+if os.path.exists(claude_md):
+    with open(claude_md) as fh:
+        existing = fh.read()
+    if rule not in existing:
+        with open(claude_md, "a") as fh:
+            fh.write('\n## Skip Deprecated Skills\nNever invoke skills or commands whose description starts with "Deprecated".\n')
+        print("CLAUDE.md: added 'Skip Deprecated Skills' rule")
+    else:
+        print("CLAUDE.md: skip rule already present")
+else:
+    print("CLAUDE.md: not found — skipping rule write")
+PYEOF
+```
+
+## Step 6: Print summary
 
 Output a clean completion message:
 
