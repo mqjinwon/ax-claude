@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ax — Personal Agent Control Plane CLI
-# Commands: init, ingest, status, upgrade, help
+# Commands: init, ingest, status, migrate, upgrade, help
 
 set -euo pipefail
 
@@ -28,31 +28,6 @@ legacy_claude_project_id() {
   printf '%s' "$absolute_root"
 }
 
-claude_project_dir_matches_root() {
-  local project_dir="$1"
-  local project_root="$2"
-  local project_root_real session_file session_cwd
-  local found_session=false
-  project_root_real="$(cd -P "$project_root" && pwd)"
-
-  [ -d "$project_dir" ] || return 0
-
-  shopt -s nullglob
-  for session_file in "$project_dir"/*.jsonl; do
-    found_session=true
-    while IFS= read -r session_cwd; do
-      [ -z "$session_cwd" ] && continue
-      [ "$session_cwd" = "$project_root" ] && return 0
-      [ "$session_cwd" = "$project_root_real" ] && return 0
-      return 1
-    done < <(jq -r 'select(.cwd? != null) | .cwd' "$session_file" 2>/dev/null)
-  done
-  shopt -u nullglob
-
-  $found_session || return 0
-  return 0
-}
-
 # Resolve plugin root regardless of install location without GNU-specific path tools.
 PLUGIN_ROOT="$(cd "$(dirname "$(resolve_script_path "${BASH_SOURCE[0]}")")/.." && pwd)"
 
@@ -76,23 +51,11 @@ case "$COMMAND" in
 
     mkdir -p "$MEMORY_DIR"
 
-    # Derive stable identifiers. Claude currently uses a legacy path-to-dash
-    # encoding for project directories, so keep that naming but guard against
-    # collisions before writing any memory symlink.
     SLUG=$(basename "$PROJECT_ROOT")
-    CLAUDE_PROJECT_ID="$(legacy_claude_project_id "$PROJECT_ROOT")"
-    CLAUDE_PROJECT_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}"
-    if ! claude_project_dir_matches_root "$CLAUDE_PROJECT_DIR" "$PROJECT_ROOT"; then
-      echo "ERROR: Claude project directory collision detected at $CLAUDE_PROJECT_DIR" >&2
-      echo "       Existing Claude sessions in that directory point to a different project." >&2
-      echo "       Refusing to relink memory automatically." >&2
-      exit 1
-    fi
 
     # Write config (no yq dependency — plain text)
     cat > "$AX_DIR/config.yaml" << EOF
 project_slug: ${SLUG}
-claude_project_id: ${CLAUDE_PROJECT_ID}
 EOF
 
     # Initialize MEMORY.md from template
@@ -103,36 +66,18 @@ EOF
     SLUG_ESCAPED=$(printf '%s' "$SLUG" | sed 's/[|&\]/\\&/g')
     sed "s|{{project_slug}}|$SLUG_ESCAPED|g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
 
-    # Symlink into Claude's native memory path
-    CLAUDE_MEM_DIR="$CLAUDE_PROJECT_DIR/memory"
-    mkdir -p "$CLAUDE_MEM_DIR"
-    if [ -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
-      EXISTING_TARGET="$(readlink "$CLAUDE_MEM_DIR/MEMORY.md" 2>/dev/null || true)"
-      if [ -n "$EXISTING_TARGET" ] && [ "$EXISTING_TARGET" != "$MEMORY_DIR/MEMORY.md" ]; then
-        echo "ERROR: Claude memory link collision detected at $CLAUDE_MEM_DIR/MEMORY.md" >&2
-        echo "       Existing memory link points to a different project: $EXISTING_TARGET" >&2
-        exit 1
-      fi
-    fi
-
-    if [ -f "$CLAUDE_MEM_DIR/MEMORY.md" ] && [ ! -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
-      echo "ax: backing up existing MEMORY.md → MEMORY.md.bak"
-      mv "$CLAUDE_MEM_DIR/MEMORY.md" "$CLAUDE_MEM_DIR/MEMORY.md.bak"
-    fi
-
-    ln -sf "$MEMORY_DIR/MEMORY.md" "$CLAUDE_MEM_DIR/MEMORY.md"
-
     echo "ax: initialized ✓"
     echo "  Project : $SLUG"
     echo "  Root    : $PROJECT_ROOT"
     echo "  Memory  : $MEMORY_DIR/MEMORY.md"
-    echo "  Symlink : $CLAUDE_MEM_DIR/MEMORY.md → (above)"
     echo ""
     echo "  Hooks   : SessionEnd hook is handled by the plugin system or /ax-setup"
     echo "  Run     : ax ingest   ← manual trigger to populate MEMORY.md now"
     echo ""
     echo "  PATH    : add to ~/.bashrc or ~/.zshrc:"
     echo "            export PATH=\"$PLUGIN_ROOT/bin:\$PATH\""
+    echo ""
+    echo "  NOTE    : If upgrading from ax < 1.11.0, run: ax migrate"
     ;;
 
   ingest)
@@ -159,12 +104,38 @@ EOF
     MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
     if [ -f "$MEMORY" ]; then
       LINES=$(wc -l < "$MEMORY")
-      SYMLINK=$(readlink "$HOME/.claude/projects/$(grep 'claude_project_id' "$CONFIG" \
-        | awk '{print $2}')/memory/MEMORY.md" 2>/dev/null || echo "not linked")
       echo "Memory  : $MEMORY ($LINES lines)"
-      echo "Symlink : $SYMLINK"
     else
       echo "Memory  : not found (run: ax ingest)"
+    fi
+    ;;
+
+  migrate)
+    # Remove legacy MEMORY.md symlink from Claude's Layer 1 memory path.
+    # Restores MEMORY.md.bak if present so Claude auto-memory can use its own index.
+    # Run once after upgrading from ax < 1.11.0.
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    CLAUDE_PROJECT_ID="$(legacy_claude_project_id "$PROJECT_ROOT")"
+    CLAUDE_MEM_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}/memory"
+
+    if [ ! -d "$CLAUDE_MEM_DIR" ]; then
+      echo "ax: no Claude Layer 1 memory directory found — nothing to migrate"
+      exit 0
+    fi
+
+    if [ -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
+      echo "ax: found legacy symlink at $CLAUDE_MEM_DIR/MEMORY.md"
+      rm "$CLAUDE_MEM_DIR/MEMORY.md"
+      echo "ax: symlink removed"
+      if [ -f "$CLAUDE_MEM_DIR/MEMORY.md.bak" ]; then
+        mv "$CLAUDE_MEM_DIR/MEMORY.md.bak" "$CLAUDE_MEM_DIR/MEMORY.md"
+        echo "ax: restored MEMORY.md.bak → MEMORY.md"
+        echo "    Review it — keep only user/feedback entries, remove project_* lines."
+      else
+        echo "ax: no .bak found — Claude will create a fresh Layer 1 MEMORY.md on next session"
+      fi
+    else
+      echo "ax: no legacy symlink found — nothing to migrate"
     fi
     ;;
 
@@ -197,6 +168,7 @@ Commands:
   ax init      Initialize .ax/ for the current git project
   ax ingest    Manually run ingest (populate MEMORY.md now)
   ax status    Show project ax status
+  ax migrate   Remove legacy MEMORY.md symlink (run once after upgrading from < 1.11.0)
   ax upgrade   Pull latest from git and re-run setup
 
 After init, ax-ingest.sh runs automatically on SessionEnd via Claude hooks.

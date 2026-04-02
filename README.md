@@ -65,7 +65,9 @@ cd ~/my-project
 ax init
 ```
 
-`<project>/.ax/memory/MEMORY.md` 생성 + Claude 네이티브 메모리 경로에 symlink.
+`<project>/.ax/memory/MEMORY.md` 생성 (Layer 2). Claude auto-memory(Layer 1)와 분리 운영됩니다.
+
+> **v1.10.x 이하에서 업그레이드 시**: `ax migrate` 실행으로 기존 symlink 제거.
 
 ### 세션 시작 시 컨텍스트 복원
 
