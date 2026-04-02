@@ -1,5 +1,5 @@
 {
-  "description": "AX session memory ingestion on session end; write-guard on .ax/memory/",
+  "description": "AX session memory ingestion on session end; write-guard + rate-limit on PreToolUse; auto-resume on Stop",
   "hooks": {
     "SessionEnd": [
       {
@@ -21,7 +21,20 @@
           {
             "type": "command",
             "command": "\"$CLAUDE_PLUGIN_ROOT\"/hooks/ax-write-guard.sh",
-            "timeout": 3
+            "timeout": 8
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PLUGIN_ROOT\"/adapters/ax-resume-watcher.sh --trigger",
+            "timeout": 10,
+            "async": true
           }
         ]
       }
