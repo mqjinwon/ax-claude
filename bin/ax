@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ax — Personal Agent Control Plane CLI
-# Commands: init, ingest, status, migrate, upgrade, help
+# Commands: init, help
 
 set -euo pipefail
 
@@ -17,15 +17,6 @@ resolve_script_path() {
   done
   source_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
   printf '%s/%s\n' "$source_dir" "$(basename "$source_path")"
-}
-
-legacy_claude_project_id() {
-  local project_root="$1"
-  local absolute_root
-  absolute_root="$(cd -P "$project_root" && pwd)"
-  absolute_root="${absolute_root//\//-}"
-  absolute_root="${absolute_root//_/-}"
-  printf '%s' "$absolute_root"
 }
 
 # Resolve plugin root regardless of install location without GNU-specific path tools.
@@ -72,92 +63,7 @@ EOF
     echo "  Memory  : $MEMORY_DIR/MEMORY.md"
     echo ""
     echo "  Hooks   : SessionEnd hook is handled by the plugin system or /ax-setup"
-    echo "  Run     : ax ingest   ← manual trigger to populate MEMORY.md now"
-    echo ""
-    echo "  PATH    : add to ~/.bashrc or ~/.zshrc:"
-    echo "            export PATH=\"$PLUGIN_ROOT/bin:\$PATH\""
-    echo ""
-    echo "  NOTE    : If upgrading from ax < 1.11.0, run: ax migrate"
-    ;;
-
-  ingest)
-    # Manual trigger — useful to test without waiting for session end
-    SCRIPT="$PLUGIN_ROOT/adapters/ax-ingest.sh"
-    [ -x "$SCRIPT" ] || { echo "ERROR: $SCRIPT not found or not executable" >&2; exit 1; }
-    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    jq -n --arg cwd "$PROJECT_ROOT" '{"cwd": $cwd}' | "$SCRIPT"
-    echo "ax: ingest complete"
-    ;;
-
-  status)
-    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    CONFIG="$PROJECT_ROOT/.ax/config.yaml"
-    if [ ! -f "$CONFIG" ]; then
-      echo "ax: not initialized in $PROJECT_ROOT"
-      echo "    Run: ax init"
-      exit 1
-    fi
-    echo "ax status — $PROJECT_ROOT"
-    echo ""
-    cat "$CONFIG"
-    echo ""
-    MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
-    if [ -f "$MEMORY" ]; then
-      LINES=$(wc -l < "$MEMORY")
-      echo "Memory  : $MEMORY ($LINES lines)"
-    else
-      echo "Memory  : not found (run: ax ingest)"
-    fi
-    ;;
-
-  migrate)
-    # Remove legacy MEMORY.md symlink from Claude's Layer 1 memory path.
-    # Restores MEMORY.md.bak if present so Claude auto-memory can use its own index.
-    # Run once after upgrading from ax < 1.11.0.
-    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    CLAUDE_PROJECT_ID="$(legacy_claude_project_id "$PROJECT_ROOT")"
-    CLAUDE_MEM_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}/memory"
-
-    if [ ! -d "$CLAUDE_MEM_DIR" ]; then
-      echo "ax: no Claude Layer 1 memory directory found — nothing to migrate"
-      exit 0
-    fi
-
-    if [ -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
-      echo "ax: found legacy symlink at $CLAUDE_MEM_DIR/MEMORY.md"
-      rm "$CLAUDE_MEM_DIR/MEMORY.md"
-      echo "ax: symlink removed"
-      if [ -f "$CLAUDE_MEM_DIR/MEMORY.md.bak" ]; then
-        mv "$CLAUDE_MEM_DIR/MEMORY.md.bak" "$CLAUDE_MEM_DIR/MEMORY.md"
-        echo "ax: restored MEMORY.md.bak → MEMORY.md"
-        echo "    Review it — keep only user/feedback entries, remove project_* lines."
-      else
-        echo "ax: no .bak found — Claude will create a fresh Layer 1 MEMORY.md on next session"
-      fi
-    else
-      echo "ax: no legacy symlink found — nothing to migrate"
-    fi
-    ;;
-
-  upgrade)
-    # Plugin install: delegate to Claude plugin system
-    if [[ "$PLUGIN_ROOT" == *"/.claude/plugins/cache/"* ]]; then
-      echo "ax: installed as Claude plugin"
-      echo "    Use: /plugin install ax-claude"
-      exit 0
-    fi
-    # Legacy git clone install
-    if [ ! -d "$PLUGIN_ROOT/.git" ]; then
-      echo "ax: not a git repo — reinstall manually"
-      echo "    git clone https://github.com/mqjinwon/ax-claude ~/.ax && ~/.ax/setup"
-      exit 1
-    fi
-    echo "ax: pulling latest..."
-    git -C "$PLUGIN_ROOT" pull
-    echo "ax: re-running setup..."
-    "$PLUGIN_ROOT/setup"
-    echo ""
-    echo "ax: upgraded to v$(tr -d '[:space:]' < "$PLUGIN_ROOT/VERSION")"
+    echo "  Use     : /ax inside Claude Code to interact with project memory"
     ;;
 
   help|--help|-h|*)
@@ -165,13 +71,10 @@ EOF
 ax — Personal Agent Control Plane
 
 Commands:
-  ax init      Initialize .ax/ for the current git project
-  ax ingest    Manually run ingest (populate MEMORY.md now)
-  ax status    Show project ax status
-  ax migrate   Remove legacy MEMORY.md symlink (run once after upgrading from < 1.11.0)
-  ax upgrade   Pull latest from git and re-run setup
+  ax init   Initialize .ax/ for the current git project
 
-After init, ax-ingest.sh runs automatically on SessionEnd via Claude hooks.
+Session memory is managed automatically via Claude hooks.
+Use /ax inside Claude Code to interact with project memory.
 EOF
     ;;
 esac
