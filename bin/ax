@@ -47,6 +47,12 @@ case "$COMMAND" in
     # Write config (no yq dependency — plain text)
     cat > "$AX_DIR/config.yaml" << EOF
 project_slug: ${SLUG}
+
+# Rate limit auto-resume thresholds (percentage 0-100)
+warn_at: 80
+pause_at: 90
+block_at: 100
+auto_resume: true
 EOF
 
     # Initialize MEMORY.md from template
