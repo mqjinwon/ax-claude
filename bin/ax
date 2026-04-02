@@ -66,12 +66,31 @@ EOF
     echo "  Use     : /ax inside Claude Code to interact with project memory"
     ;;
 
+  queue)
+    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    AX_DIR="$PROJECT_ROOT/.ax"
+    if [ ! -d "$AX_DIR" ]; then
+      echo "ax: project not initialized. Run 'ax init' first." >&2
+      exit 1
+    fi
+    TASK="${2:-}"
+    if [ -z "$TASK" ]; then
+      echo "Usage: ax queue \"<task description>\"" >&2
+      exit 1
+    fi
+    printf '%s' "$TASK" > "$AX_DIR/resume-task.txt"
+    echo "ax: task registered → $AX_DIR/resume-task.txt"
+    echo "  Task: $TASK"
+    echo "  Auto-resume will trigger if usage limit is hit."
+    ;;
+
   help|--help|-h|*)
     cat << 'EOF'
 ax — Personal Agent Control Plane
 
 Commands:
-  ax init   Initialize .ax/ for the current git project
+  ax init             Initialize .ax/ for the current git project
+  ax queue "<task>"   Pre-register a task for auto-resume on rate limit
 
 Session memory is managed automatically via Claude hooks.
 Use /ax inside Claude Code to interact with project memory.
