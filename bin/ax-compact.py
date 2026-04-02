@@ -45,7 +45,7 @@ section_body = content[begin_idx + len(begin_marker):end_idx]
 entry_re = re.compile(r"(<!-- entry:[^>]+ -->)")
 parts = entry_re.split(section_body)
 
-entries = []  # list of (marker_str, body_str)
+entries = []
 i = 1
 while i < len(parts):
     marker = parts[i]
@@ -62,8 +62,8 @@ to_keep = entries[compress_count:]
 
 today = datetime.date.today().strftime("%Y-%m-%d")
 ts = datetime.datetime.now().strftime("%Y%m%d%H%M")
+MAX_SUMMARY_LEN = 120
 
-# Build one-line summaries for the compact notice
 summaries = []
 for marker, body in to_compress:
     m = re.search(r"<!-- entry:([^>]+) -->", marker)
@@ -76,7 +76,6 @@ for marker, body in to_compress:
                 summaries.append(line)
         continue
 
-    # Extract first meaningful line from body
     first_line = ""
     for line in body.strip().splitlines():
         stripped = line.strip()
@@ -88,13 +87,12 @@ for marker, body in to_compress:
     if date_match:
         entry_date = date_match.group(1)
         rest = re.sub(r"`[^`]*`", "", first_line[date_match.end():]).strip().lstrip(": ")
-        summaries.append(f"- [{entry_date}] {rest[:120]}")
+        summaries.append(f"- [{entry_date}] {rest[:MAX_SUMMARY_LEN]}")
     elif first_line.startswith("- "):
-        summaries.append(first_line[:120])
+        summaries.append(first_line[:MAX_SUMMARY_LEN])
     else:
-        summaries.append(f"- {first_line[:120]}")
+        summaries.append(f"- {first_line[:MAX_SUMMARY_LEN]}")
 
-# Determine date range of compressed entries
 dates = []
 for _, body in to_compress:
     dm = re.search(r"\*\*(\d{4}-\d{2}-\d{2})\*\*", body)

@@ -47,7 +47,7 @@ for _PAIR in "${TOPIC_SECTIONS[@]}"; do
 
   if [ -n "$_TMPOUT" ] && [ -f "$_TMPOUT" ]; then
     ax_replace_section "$_TOPIC_FILE" "$_SECTION" "$_TMPOUT"
-    rm -f "$_TMPOUT"
     printf 'ax-compact: compacted %s/%s\n' "$_TOPIC" "$_SECTION" >&2
   fi
+  rm -f "$_TMPOUT" 2>/dev/null || true
 done
