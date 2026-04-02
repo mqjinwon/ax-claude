@@ -152,6 +152,35 @@ NotebookLM과 연동해 프로젝트별 학습 공간을 만듭니다.
 
 > **quiz, report, explain** 등 NLM 직접 기능은 `/notebooklm-study`를 사용하세요.
 
+### Memory Compaction (자동 압축)
+
+세션 종료 시 ingest가 끝나면 topic 파일들의 크기를 자동으로 관리합니다.
+항목 수가 `AX_COMPACT_HARD_CAP`을 초과하면, 오래된 항목들을 하나의 compact notice로 대체합니다.
+
+**기본값:**
+| 환경 변수 | 기본값 | 설명 |
+|-----------|--------|------|
+| `AX_COMPACT_HARD_CAP` | `20` | 이 수를 초과하면 압축 실행 |
+| `AX_COMPACT_KEEP_RECENT` | `15` | 압축 후 원본으로 보존할 최신 항목 수 |
+
+**env var 오버라이드 예시:**
+```bash
+# decisions.md를 최대 50개, 최근 40개 보존으로 설정
+export AX_COMPACT_HARD_CAP=50
+export AX_COMPACT_KEEP_RECENT=40
+```
+
+**compact notice 형식** (압축된 항목들이 이 형식으로 대체됩니다):
+```markdown
+<!-- entry:compact-202604021200 -->
+**2026-04-02** [compacted 8 entries, 2026-01-01..2026-03-15]:
+- [2026-01-01] Filesystem-based memory beats vector DB
+- [2026-03-31] P1/P3/P4 구현 완료, v1.9.0
+...
+```
+
+압축 대상 파일: `decisions.md`, `research-notes.md`, `experiment-log.md`, `study-notes.md`
+
 ### 수동 인제스트
 
 ```bash
@@ -194,12 +223,14 @@ Plugin 설치 시:
 │   └── plugin.json         # Plugin metadata (skills, hooks 경로)
 ├── bin/
 │   ├── ax                  # CLI (init, ingest, status, upgrade)
-│   └── ax-route.py         # /ax keyword router
+│   ├── ax-route.py         # /ax keyword router
+│   └── ax-compact.py       # Memory compaction engine (Rolling Summary + Hard Cap)
 ├── adapters/
-│   ├── ax-ingest.sh        # SessionEnd hook orchestrator
-│   ├── ingest-gstack.sh    # gstack eureka + skill usage 수집
-│   ├── ingest-omc.sh       # OMC mission + session 수집
-│   └── ingest-research.sh  # Research output 파일 수집
+│   ├── ax-ingest.sh          # SessionEnd hook orchestrator
+│   ├── ingest-gstack.sh      # gstack eureka + skill usage 수집
+│   ├── ingest-omc.sh         # OMC mission + session 수집
+│   ├── ingest-research.sh    # Research output 파일 수집
+│   └── ax-memory-compact.sh  # Rolling Summary + Hard Cap 자동 압축
 ├── hooks/
 │   ├── hooks.json          # SessionEnd + PreToolUse hook 정의 (plugin system 등록용)
 │   └── ax-write-guard.sh   # PreToolUse: .ax/memory/ 직접 write 차단
@@ -269,9 +300,10 @@ ingest 흐름:
 SessionEnd hook fires
   └── ax-ingest.sh (reads cwd from stdin JSON)
         ├── topic 파일 bootstrap (decisions / research-notes / experiment-log)
-        ├── ingest-gstack.sh  → decisions.md + session-history (MEMORY.md)
-        ├── ingest-omc.sh     → active-context + session-history (MEMORY.md)
-        └── ingest-research.sh → research-notes.md + experiment-log.md
+        ├── ingest-gstack.sh    → decisions.md + session-history (MEMORY.md)
+        ├── ingest-omc.sh       → active-context + session-history (MEMORY.md)
+        ├── ingest-research.sh  → research-notes.md + experiment-log.md
+        └── ax-memory-compact.sh → topic 파일 자동 압축 (cap 초과 시)
 ```
 
 각 어댑터는 entry ID 기반 중복 제거 (`<!-- entry:ID -->` 마커)를 사용합니다.
