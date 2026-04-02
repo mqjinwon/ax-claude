@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ax — Personal Agent Control Plane CLI
-# Commands: init, ingest, status, upgrade, help
+# Commands: init, help
 
 set -euo pipefail
 
@@ -17,40 +17,6 @@ resolve_script_path() {
   done
   source_dir="$(cd -P "$(dirname "$source_path")" && pwd)"
   printf '%s/%s\n' "$source_dir" "$(basename "$source_path")"
-}
-
-legacy_claude_project_id() {
-  local project_root="$1"
-  local absolute_root
-  absolute_root="$(cd -P "$project_root" && pwd)"
-  absolute_root="${absolute_root//\//-}"
-  absolute_root="${absolute_root//_/-}"
-  printf '%s' "$absolute_root"
-}
-
-claude_project_dir_matches_root() {
-  local project_dir="$1"
-  local project_root="$2"
-  local project_root_real session_file session_cwd
-  local found_session=false
-  project_root_real="$(cd -P "$project_root" && pwd)"
-
-  [ -d "$project_dir" ] || return 0
-
-  shopt -s nullglob
-  for session_file in "$project_dir"/*.jsonl; do
-    found_session=true
-    while IFS= read -r session_cwd; do
-      [ -z "$session_cwd" ] && continue
-      [ "$session_cwd" = "$project_root" ] && return 0
-      [ "$session_cwd" = "$project_root_real" ] && return 0
-      return 1
-    done < <(jq -r 'select(.cwd? != null) | .cwd' "$session_file" 2>/dev/null)
-  done
-  shopt -u nullglob
-
-  $found_session || return 0
-  return 0
 }
 
 # Resolve plugin root regardless of install location without GNU-specific path tools.
@@ -76,23 +42,11 @@ case "$COMMAND" in
 
     mkdir -p "$MEMORY_DIR"
 
-    # Derive stable identifiers. Claude currently uses a legacy path-to-dash
-    # encoding for project directories, so keep that naming but guard against
-    # collisions before writing any memory symlink.
     SLUG=$(basename "$PROJECT_ROOT")
-    CLAUDE_PROJECT_ID="$(legacy_claude_project_id "$PROJECT_ROOT")"
-    CLAUDE_PROJECT_DIR="$HOME/.claude/projects/${CLAUDE_PROJECT_ID}"
-    if ! claude_project_dir_matches_root "$CLAUDE_PROJECT_DIR" "$PROJECT_ROOT"; then
-      echo "ERROR: Claude project directory collision detected at $CLAUDE_PROJECT_DIR" >&2
-      echo "       Existing Claude sessions in that directory point to a different project." >&2
-      echo "       Refusing to relink memory automatically." >&2
-      exit 1
-    fi
 
     # Write config (no yq dependency — plain text)
     cat > "$AX_DIR/config.yaml" << EOF
 project_slug: ${SLUG}
-claude_project_id: ${CLAUDE_PROJECT_ID}
 EOF
 
     # Initialize MEMORY.md from template
@@ -103,90 +57,13 @@ EOF
     SLUG_ESCAPED=$(printf '%s' "$SLUG" | sed 's/[|&\]/\\&/g')
     sed "s|{{project_slug}}|$SLUG_ESCAPED|g" "$TEMPLATE" > "$MEMORY_DIR/MEMORY.md"
 
-    # Symlink into Claude's native memory path
-    CLAUDE_MEM_DIR="$CLAUDE_PROJECT_DIR/memory"
-    mkdir -p "$CLAUDE_MEM_DIR"
-    if [ -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
-      EXISTING_TARGET="$(readlink "$CLAUDE_MEM_DIR/MEMORY.md" 2>/dev/null || true)"
-      if [ -n "$EXISTING_TARGET" ] && [ "$EXISTING_TARGET" != "$MEMORY_DIR/MEMORY.md" ]; then
-        echo "ERROR: Claude memory link collision detected at $CLAUDE_MEM_DIR/MEMORY.md" >&2
-        echo "       Existing memory link points to a different project: $EXISTING_TARGET" >&2
-        exit 1
-      fi
-    fi
-
-    if [ -f "$CLAUDE_MEM_DIR/MEMORY.md" ] && [ ! -L "$CLAUDE_MEM_DIR/MEMORY.md" ]; then
-      echo "ax: backing up existing MEMORY.md → MEMORY.md.bak"
-      mv "$CLAUDE_MEM_DIR/MEMORY.md" "$CLAUDE_MEM_DIR/MEMORY.md.bak"
-    fi
-
-    ln -sf "$MEMORY_DIR/MEMORY.md" "$CLAUDE_MEM_DIR/MEMORY.md"
-
     echo "ax: initialized ✓"
     echo "  Project : $SLUG"
     echo "  Root    : $PROJECT_ROOT"
     echo "  Memory  : $MEMORY_DIR/MEMORY.md"
-    echo "  Symlink : $CLAUDE_MEM_DIR/MEMORY.md → (above)"
     echo ""
     echo "  Hooks   : SessionEnd hook is handled by the plugin system or /ax-setup"
-    echo "  Run     : ax ingest   ← manual trigger to populate MEMORY.md now"
-    echo ""
-    echo "  PATH    : add to ~/.bashrc or ~/.zshrc:"
-    echo "            export PATH=\"$PLUGIN_ROOT/bin:\$PATH\""
-    ;;
-
-  ingest)
-    # Manual trigger — useful to test without waiting for session end
-    SCRIPT="$PLUGIN_ROOT/adapters/ax-ingest.sh"
-    [ -x "$SCRIPT" ] || { echo "ERROR: $SCRIPT not found or not executable" >&2; exit 1; }
-    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    jq -n --arg cwd "$PROJECT_ROOT" '{"cwd": $cwd}' | "$SCRIPT"
-    echo "ax: ingest complete"
-    ;;
-
-  status)
-    PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
-    CONFIG="$PROJECT_ROOT/.ax/config.yaml"
-    if [ ! -f "$CONFIG" ]; then
-      echo "ax: not initialized in $PROJECT_ROOT"
-      echo "    Run: ax init"
-      exit 1
-    fi
-    echo "ax status — $PROJECT_ROOT"
-    echo ""
-    cat "$CONFIG"
-    echo ""
-    MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
-    if [ -f "$MEMORY" ]; then
-      LINES=$(wc -l < "$MEMORY")
-      SYMLINK=$(readlink "$HOME/.claude/projects/$(grep 'claude_project_id' "$CONFIG" \
-        | awk '{print $2}')/memory/MEMORY.md" 2>/dev/null || echo "not linked")
-      echo "Memory  : $MEMORY ($LINES lines)"
-      echo "Symlink : $SYMLINK"
-    else
-      echo "Memory  : not found (run: ax ingest)"
-    fi
-    ;;
-
-  upgrade)
-    # Plugin install: delegate to Claude plugin system
-    if [[ "$PLUGIN_ROOT" == *"/.claude/plugins/cache/"* ]]; then
-      echo "ax: installed as Claude plugin"
-      echo "    Use: /plugin install ax-claude"
-      exit 0
-    fi
-    # Legacy git clone install
-    if [ ! -d "$PLUGIN_ROOT/.git" ]; then
-      echo "ax: not a git repo — reinstall manually"
-      echo "    git clone https://github.com/mqjinwon/ax-claude ~/.ax && ~/.ax/setup"
-      exit 1
-    fi
-    echo "ax: pulling latest..."
-    git -C "$PLUGIN_ROOT" pull
-    echo "ax: re-running setup..."
-    "$PLUGIN_ROOT/setup"
-    echo ""
-    echo "ax: upgraded to v$(tr -d '[:space:]' < "$PLUGIN_ROOT/VERSION")"
+    echo "  Use     : /ax inside Claude Code to interact with project memory"
     ;;
 
   help|--help|-h|*)
@@ -194,12 +71,10 @@ EOF
 ax — Personal Agent Control Plane
 
 Commands:
-  ax init      Initialize .ax/ for the current git project
-  ax ingest    Manually run ingest (populate MEMORY.md now)
-  ax status    Show project ax status
-  ax upgrade   Pull latest from git and re-run setup
+  ax init   Initialize .ax/ for the current git project
 
-After init, ax-ingest.sh runs automatically on SessionEnd via Claude hooks.
+Session memory is managed automatically via Claude hooks.
+Use /ax inside Claude Code to interact with project memory.
 EOF
     ;;
 esac
