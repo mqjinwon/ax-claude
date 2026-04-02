@@ -66,7 +66,7 @@ if [ -f "$MISSION_FILE" ]; then
 fi
 
 # ── Session History from most recent agent-replay-*.jsonl ────────────────────
-REPLAY_FILE=$(ls -t "$OMC_STATE"/agent-replay-*.jsonl 2>/dev/null | head -1)
+REPLAY_FILE=$(ls -t "$OMC_STATE"/agent-replay-*.jsonl 2>/dev/null | head -1 || true)
 [ -n "$REPLAY_FILE" ] || exit 0
 
 SESSION_ID=$(basename "$REPLAY_FILE" .jsonl | sed 's/^agent-replay-//')
