@@ -49,10 +49,11 @@ _read_project_root() {
 
 _iso_to_epoch() {
   python3 -c "
+import sys
 from datetime import datetime, timezone
-dt = datetime.fromisoformat('$1'.replace('Z','+00:00'))
+dt = datetime.fromisoformat(sys.argv[1].replace('Z','+00:00'))
 print(int(dt.timestamp()))
-" 2>/dev/null || echo "0"
+" "$1" 2>/dev/null || echo "0"
 }
 
 case "${1:-}" in
@@ -127,7 +128,8 @@ case "${1:-}" in
       rm -f "$TASK_FILE" "$PID_FILE"
       printf '[%s] Resume successful\n' "$(date -u +%FT%TZ)"
     else
-      printf '[%s] Resume failed (exit %s), retrying in 5 min\n' "$(date -u +%FT%TZ)" "$?"
+      RC=$?
+      printf '[%s] Resume failed (exit %s), retrying in 5 min\n' "$(date -u +%FT%TZ)" "$RC"
       sleep 300
       if claude --continue -p "$PROMPT"; then
         rm -f "$TASK_FILE" "$PID_FILE"
