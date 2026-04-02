@@ -49,6 +49,10 @@ while i < len(parts):
     entries.append((marker, body))
     i += 2
 
+if keep_recent >= hard_cap:
+    print(f"ax-compact: keep_recent ({keep_recent}) >= hard_cap ({hard_cap}), skipping", file=sys.stderr)
+    sys.exit(0)
+
 if len(entries) <= hard_cap:
     sys.exit(0)
 
