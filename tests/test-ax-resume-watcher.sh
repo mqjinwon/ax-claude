@@ -26,7 +26,20 @@ printf '%s' "$INPUT" | bash "$SCRIPT_DIR/adapters/ax-resume-watcher.sh" --trigge
 rm -f "$_AX_USAGE_CACHE"
 unset _AX_USAGE_CACHE _AX_USAGE_CACHE_TTL
 
+# Test 2b: --trigger with auto_resume: false → no watcher even at 100%
+echo "some task" > "$PROJ/.ax/resume-task.txt"
+mkdir -p "$PROJ/.ax"
+printf 'auto_resume: false\n' > "$PROJ/.ax/config.yaml"
+export _AX_USAGE_CACHE=$(mktemp)
+export _AX_USAGE_CACHE_TTL=3600
+python3 -c "import json,time; json.dump({'ts':time.time(),'pct':100,'resets':'2099-01-01T00:00:00Z'},open('$_AX_USAGE_CACHE','w'))"
+printf '%s' "$INPUT" | bash "$SCRIPT_DIR/adapters/ax-resume-watcher.sh" --trigger
+[ ! -f "$PROJ/.ax/resume-watcher.pid" ] && ok "--trigger: auto_resume=false → no watcher" || fail "--trigger: auto_resume=false unexpected watcher"
+rm -f "$_AX_USAGE_CACHE" "$PROJ/.ax/resume-task.txt" "$PROJ/.ax/config.yaml"
+unset _AX_USAGE_CACHE _AX_USAGE_CACHE_TTL
+
 # Test 3: --trigger with task file + usage = 100% → watcher launched
+echo "implement feature X" > "$PROJ/.ax/resume-task.txt"
 export _AX_USAGE_CACHE=$(mktemp)
 export _AX_USAGE_CACHE_TTL=3600
 FUTURE=$(python3 -c "from datetime import datetime,timezone,timedelta; print((datetime.now(timezone.utc)+timedelta(seconds=5)).isoformat())")
