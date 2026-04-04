@@ -22,8 +22,6 @@
 #   paper-writing           paper-plan → paper-figure → paper-write → paper-compile → improvement
 #   rebuttal                parse reviews → draft rebuttal → manage follow-up rounds
 #   research-refine-pipeline research-refine + experiment-plan chained
-#   gstack-autoplan         gstack-plan-ceo-review + design + eng review, auto-decisions
-#   gstack-land-and-deploy  merge PR → wait CI → verify via canary (runs after gstack-ship)
 #   oh-my-claudecode:autopilot   full autonomous execution from idea to working code
 #   oh-my-claudecode:ultrawork   parallel execution engine for multi-task completion
 #   oh-my-claudecode:ralph  self-referential loop until task completion
@@ -36,24 +34,6 @@ hidden:
   - comm-lit-review         # communications domain only
   # Fun/unrelated
   - pixel-art               # unrelated to research workflow
-  # gstack internal utilities (not user-facing workflows)
-  - gstack-canary           # monitoring daemon, called by gstack-land-and-deploy
-  - gstack-setup-deploy     # one-time deploy config, not a workflow
-  - gstack-setup-browser-cookies  # web automation setup utility
-  - gstack-connect-chrome   # web automation setup utility
-  - gstack-upgrade          # gstack self-upgrade; user should run /gstack-upgrade explicitly
-  - gstack                  # headless browser daemon, internal utility
-  - gstack-browse           # alias for gstack daemon
-  - gstack-benchmark        # web perf benchmarking, gstack-internal
-  - gstack-codex            # OpenAI Codex CLI wrapper, specialized
-  - gstack-health           # code quality dashboard; use gstack-review for PR review
-  # Team/safety modes (not for solo use)
-  - gstack-retro            # weekly team retro
-  - gstack-cso              # Chief Security Officer mode, team use
-  - gstack-guard            # full safety mode, team use
-  - gstack-careful          # destructive command warnings, team use
-  - gstack-freeze           # directory-scoped edit restriction, team use
-  - gstack-unfreeze         # clears freeze boundary, team use
   # Internal research pipeline components (called by orchestrators, not users directly)
   - feishu-notify           # internal notification utility (Chinese-specific)
   - auto-paper-improvement-loop   # called internally by paper-writing orchestrator
@@ -69,7 +49,6 @@ categories:
   debugging:
     canonical: oh-my-claudecode:tracer
     aliases:
-      - gstack-investigate
       - oh-my-claudecode:deep-dive
       - superpowers:systematic-debugging
     trigger:
@@ -87,13 +66,8 @@ categories:
       - "not working"
 
   planning:
-    # gstack-office-hours: YC-style forcing questions (product/direction)
-    # oh-my-claudecode:plan: technical architecture/implementation planning
-    canonical: gstack-office-hours
+    canonical: oh-my-claudecode:plan
     aliases:
-      - oh-my-claudecode:plan
-      - gstack-plan-ceo-review
-      - gstack-plan-eng-review
       - superpowers:writing-plans
     trigger:
       - "설계"
@@ -106,10 +80,8 @@ categories:
       - "office hours"
 
   code_review:
-    # gstack-review: pre-landing PR review (SQL safety, LLM trust boundary, etc.)
-    canonical: gstack-review
+    canonical: oh-my-claudecode:code-reviewer
     aliases:
-      - oh-my-claudecode:code-reviewer
       - superpowers:code-reviewer
     trigger:
       - "리뷰"
@@ -140,13 +112,7 @@ categories:
       - "automate"
 
   ship_deploy:
-    # gstack-ship: git ship workflow — merge base, run tests, bump VERSION,
-    #              update CHANGELOG, push, create PR
-    # gstack-land-and-deploy: after ship — merge PR, wait CI, verify via canary
-    canonical: gstack-ship
-    orchestrator: gstack-land-and-deploy
-    aliases:
-      - autoresearch:autoresearch:ship
+    canonical: autoresearch:autoresearch:ship
     trigger:
       - "ship"
       - "배포"
@@ -316,8 +282,6 @@ categories:
 
   docs_technical:
     canonical: mermaid-diagram
-    aliases:
-      - gstack-document-release
     trigger:
       - "다이어그램"
       - "플로우차트"
@@ -368,19 +332,6 @@ categories:
       - "ai 냄새 제거"
 
   # ── Web / Design ─────────────────────────────────────────────────────────
-
-  web_design:
-    canonical: gstack-design-consultation
-    aliases:
-      - gstack-design-review
-      - gstack-design-html
-      - gstack-design-shotgun
-    trigger:
-      - "웹 디자인"
-      - "UI 설계"
-      - "사이트 만들어"
-      - "design consultation"
-      - "웹 만들어"
 
   # ── Study ────────────────────────────────────────────────────────────────
 

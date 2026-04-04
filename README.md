@@ -1,6 +1,6 @@
 # AX — Personal Agent Control Plane
 
-AX는 Claude Code + gstack + OMC + Codex를 통합하는 개인용 plugin입니다.
+AX는 Claude Code + OMC + Codex를 통합하는 개인용 plugin입니다.
 세션 간 메모리 유지, skill 라우팅, research 기록 자동 수집을 처리합니다.
 
 ## What it does
@@ -109,16 +109,6 @@ Routing Mode는 카테고리에 따라 관련 topic 파일(decisions.md / resear
 ```
 
 `decisions.md`에 타임스탬프와 함께 기록 (v1.4+: decisions.md 별도 파일).
-
-### Observability
-
-AX는 세션 종료 시 ingest 실행 시간을 `~/.gstack/analytics/ax-ingest.log`에 JSONL 형식으로 기록합니다:
-
-```json
-{"ts":"2026-04-01T12:00:00Z","project":"my-project","duration_s":2}
-```
-
-`~/.gstack/analytics/` 디렉토리가 존재할 때만 기록됩니다. 없으면 no-op.
 
 ### Project-level Routing Overrides
 
@@ -251,7 +241,6 @@ Plugin 설치 시:
 │   └── ax-compact.py       # Memory compaction engine (Rolling Summary + Hard Cap)
 ├── adapters/
 │   ├── ax-ingest.sh          # SessionEnd hook orchestrator
-│   ├── ingest-gstack.sh      # gstack eureka + skill usage 수집
 │   ├── ingest-omc.sh         # OMC mission + session 수집
 │   ├── ingest-research.sh    # Research output 파일 수집
 │   └── ax-memory-compact.sh  # Rolling Summary + Hard Cap 자동 압축
@@ -312,7 +301,7 @@ v1.4부터 메모리는 여러 파일로 분리됩니다 (Split Memory).
 ```
 <project>/.ax/memory/
   ├── MEMORY.md            ← 인덱스: active-context, session-history, open-problems
-  ├── decisions.md         ← 결정 이력 (gstack eureka + /ax learn)
+  ├── decisions.md         ← 결정 이력 (/ax learn)
   ├── research-notes.md    ← research output 파일 요약
   ├── experiment-log.md    ← eval_results.json 결과 기록
   └── study-notes.md       ← 문서 학습 진행상황 (/ax-study)
@@ -324,7 +313,6 @@ ingest 흐름:
 SessionEnd hook fires
   └── ax-ingest.sh (reads cwd from stdin JSON)
         ├── topic 파일 bootstrap (decisions / research-notes / experiment-log)
-        ├── ingest-gstack.sh    → decisions.md + session-history (MEMORY.md)
         ├── ingest-omc.sh       → active-context + session-history (MEMORY.md)
         ├── ingest-research.sh  → research-notes.md + experiment-log.md
         └── ax-memory-compact.sh → topic 파일 자동 압축 (cap 초과 시)
