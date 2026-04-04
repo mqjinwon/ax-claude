@@ -174,9 +174,6 @@ After the script output, append the static hierarchy section:
     → /paper-poster   학회 포스터 (A0/A1)
     → /humanizer      최종 AI 흔적 제거
 
-  코드 배포 후
-    → /gstack-document-release  README/API docs 갱신
-
   기술 문서 / 다이어그램
     → /mermaid-diagram  시스템 아키텍처
 

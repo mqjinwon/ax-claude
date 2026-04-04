@@ -10,7 +10,5 @@
 .omc/
 .superpowers/
 superpowers/
-.gstack/
-
 # Git worktrees
 .worktrees/
