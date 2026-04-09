@@ -1,6 +1,6 @@
 ---
 name: ax-study
-version: 1.0.0
+version: 1.15.0
 description: |
   Document study skill with NotebookLM integration and ax memory.
   /ax-study <pdf-or-url>    → init: create NLM notebook, build study roadmap

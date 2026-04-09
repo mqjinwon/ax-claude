@@ -1,6 +1,6 @@
 ---
 name: ax-setup
-version: 1.8.0
+version: 1.15.0
 description: |
   Post-install setup for AX plugin. Fully automatic — no manual edits needed.
   Run once after /plugin install ax-claude.

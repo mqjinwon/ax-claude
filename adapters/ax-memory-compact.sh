@@ -32,6 +32,7 @@ TOPIC_SECTIONS=(
   "research-notes:research-notes"
   "experiment-log:experiment-log"
   "study-notes:study-notes"
+  "MEMORY:session-history"
 )
 
 for _PAIR in "${TOPIC_SECTIONS[@]}"; do
