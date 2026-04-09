@@ -47,7 +47,7 @@ categories:
   # ── Developer Workflow ────────────────────────────────────────────────────
 
   debugging:
-    canonical: oh-my-claudecode:tracer
+    canonical: oh-my-claudecode:trace
     aliases:
       - oh-my-claudecode:deep-dive
       - superpowers:systematic-debugging
@@ -80,9 +80,9 @@ categories:
       - "office hours"
 
   code_review:
-    canonical: oh-my-claudecode:code-reviewer
+    canonical: superpowers:requesting-code-review
     aliases:
-      - superpowers:code-reviewer
+      - superpowers:receiving-code-review
     trigger:
       - "리뷰"
       - "코드 확인"
@@ -177,7 +177,7 @@ categories:
     aliases:
       - monitor-experiment
       - training-check
-      - oh-my-claudecode:scientist
+      - oh-my-claudecode:sciomc
     trigger:
       - "실험 돌려"
       - "학습 시작"
