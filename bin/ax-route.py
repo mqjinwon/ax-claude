@@ -192,5 +192,81 @@ if fuzzy_cat is not None:
     print("SOURCE=fuzzy")
     sys.exit(0)
 
-# ── Tier 3: TF-IDF match (Task 4 추가 예정) ───────────────────────────────────
-sys.exit(0)
+# ── Tier 3: TF-IDF match ──────────────────────────────────────────────────────
+TFIDF_THRESHOLD = 0.30
+
+def tokenize(text: str) -> list:
+    """Korean 3-gram + English word tokenization."""
+    tokens = []
+    for word in re.findall(r'[a-zA-Z]+', text.lower()):
+        tokens.append(word)
+    ko_chars = re.findall(r'[\uAC00-\uD7A3\u3131-\u314E\u314F-\u3163]', text)
+    ko_str = ''.join(ko_chars)
+    for i in range(len(ko_str) - 2):
+        tokens.append(ko_str[i:i + 3])
+    return tokens
+
+def build_tfidf_vectors(categories: dict) -> dict:
+    cat_docs = {
+        cat: info.get("examples", [])
+        for cat, info in categories.items()
+        if info.get("examples")
+    }
+    if not cat_docs:
+        return {}
+
+    cat_token_lists = {
+        cat: [tokenize(d) for d in docs]
+        for cat, docs in cat_docs.items()
+    }
+    N = sum(len(docs) for docs in cat_docs.values())
+    df: Counter = Counter()
+    for tlists in cat_token_lists.values():
+        for tl in tlists:
+            for tok in set(tl):
+                df[tok] += 1
+    idf = {
+        tok: math.log((N + 1) / (df[tok] + 1)) + 1
+        for tok in df
+    }
+    cat_vectors: dict = {}
+    for cat, tlists in cat_token_lists.items():
+        vec: Counter = Counter()
+        for tl in tlists:
+            total = len(tl) or 1
+            for tok, cnt in Counter(tl).items():
+                vec[tok] += (cnt / total) * idf.get(tok, 1.0)
+        norm = math.sqrt(sum(v * v for v in vec.values())) or 1.0
+        for tok in vec:
+            vec[tok] /= norm
+        cat_vectors[cat] = vec
+    return cat_vectors
+
+def tfidf_match(inp_lower: str, cat_vectors: dict) -> tuple:
+    query_tokens = tokenize(inp_lower)
+    if not query_tokens or not cat_vectors:
+        return (None, 0.0)
+    tf_q = Counter(query_tokens)
+    total_q = len(query_tokens)
+    norm_q = math.sqrt(sum((cnt / total_q) ** 2 for cnt in tf_q.values())) or 1.0
+    best_cat, best_score = None, 0.0
+    for cat, vec in cat_vectors.items():
+        dot = sum(vec.get(tok, 0.0) * (cnt / total_q) for tok, cnt in tf_q.items())
+        score = dot / norm_q
+        if score > best_score:
+            best_score, best_cat = score, cat
+    return (best_cat, best_score) if best_score >= TFIDF_THRESHOLD else (None, best_score)
+
+cat_vectors = build_tfidf_vectors(categories)
+tfidf_cat, tfidf_score = tfidf_match(inp_lower, cat_vectors)
+if tfidf_cat is not None:
+    info = categories[tfidf_cat]
+    print(f"MATCH={tfidf_cat}")
+    print(f"CANONICAL={info['canonical']}")
+    orch = info.get("orchestrator", "")
+    if orch:
+        print(f"ORCHESTRATOR={orch}")
+    print("MODE=canonical")
+    print(f"CONFIDENCE={tfidf_score:.2f}")
+    print("SOURCE=tfidf")
+    sys.exit(0)
