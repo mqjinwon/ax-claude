@@ -64,6 +64,14 @@ categories:
       - "traceback"
       - "segfault"
       - "not working"
+    examples:
+      - "에러가 나는데 어디서 죽는지 모르겠어"
+      - "이 코드가 왜 안 되지?"
+      - "segfault가 발생해서 원인을 찾아야 해"
+      - "exception이 뜨는데 어떻게 고치지?"
+      - "어디서 죽는지 모르겠어"
+      - "죽는 지점을 찾아야 해"
+      - "왜 죽는지 알 수가 없어"
 
   planning:
     canonical: oh-my-claudecode:plan
@@ -79,6 +87,10 @@ categories:
       - "architecture"
       - "어떤 방향"
       - "office hours"
+    examples:
+      - "어떤 구조로 만들면 좋을까?"
+      - "아키텍처를 어떻게 잡아야 할지 모르겠어"
+      - "설계를 도와줘"
 
   code_review:
     canonical: superpowers:requesting-code-review
@@ -113,6 +125,10 @@ categories:
       - "build it all"
       - "do it all"
       - "automate"
+    examples:
+      - "이 기능을 전부 다 구현해줘"
+      - "자동으로 끝까지 해줘"
+      - "멈추지 말고 전부 다 해줘"
 
   ship_deploy:
     canonical: autoresearch:autoresearch:ship
@@ -192,6 +208,10 @@ categories:
       - "설계하고 돌려"
       - "실험 전체"
       - "experiment bridge"
+    examples:
+      - "실험을 돌려야 하는데 어떻게 해?"
+      - "모델 학습을 시작하고 싶어"
+      - "훈련을 시작하고 결과를 봐야 해"
 
   research_paper:
     canonical: paper-write
@@ -211,6 +231,10 @@ categories:
       - "paper writing"
       - "보고서 pdf"
       - "논문 작성"
+    examples:
+      - "논문 초고를 작성해야 해"
+      - "introduction 섹션을 써야 하는데"
+      - "related work를 어떻게 쓰지?"
 
   research_full_pipeline:
     # auto-review-loop: iterative improvement loop (review → fix → re-review)
