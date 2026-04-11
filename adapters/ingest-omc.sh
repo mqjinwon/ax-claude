@@ -8,7 +8,8 @@
 
 set -euo pipefail
 CONTENT_FILE=""
-trap 'rm -f "${CONTENT_FILE:-}"' EXIT
+PM_CONTENT_FILE=""
+trap 'rm -f "${CONTENT_FILE:-}" "${PM_CONTENT_FILE:-}" "${PM_CONTENT_FILE:-}.new"' EXIT
 
 PROJECT_ROOT="${1:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
@@ -115,7 +116,7 @@ if [ -f "$PROJECT_MEMORY_FILE" ] && [ -f "$DECISIONS_FILE" ] && command -v jq >/
     (.entries // [])
     | sort_by(.createdAt) | reverse | .[0:10]
     | .[]
-    | "\(.id)|\(.createdAt[:10])|\(.content)"
+    | [.id, .createdAt[:10], .content] | @tsv
   ' "$PROJECT_MEMORY_FILE" 2>/dev/null || true)
 
   if [ -n "$ENTRIES" ]; then
@@ -125,7 +126,7 @@ if [ -f "$PROJECT_MEMORY_FILE" ] && [ -f "$DECISIONS_FILE" ] && command -v jq >/
       | grep -v '^_No decisions recorded yet' > "$PM_CONTENT_FILE" || true
 
     ADDED=0
-    while IFS='|' read -r ENTRY_ID ENTRY_DATE ENTRY_CONTENT; do
+    while IFS=$'\t' read -r ENTRY_ID ENTRY_DATE ENTRY_CONTENT; do
       [ -n "$ENTRY_ID" ] || continue
       SHORT_ID="${ENTRY_ID:0:8}"
       DEDUP_ID="omc-${SHORT_ID}"
