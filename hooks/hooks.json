@@ -1,6 +1,18 @@
 {
-  "description": "AX session memory ingestion on session end; write-guard + rate-limit on PreToolUse; auto-resume on Stop",
+  "description": "AX session memory ingestion on session end; write-guard + rate-limit on PreToolUse; auto-resume on Stop; auto skill routing on UserPromptSubmit",
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PLUGIN_ROOT\"/hooks/ax-auto-route.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "matcher": "*",
