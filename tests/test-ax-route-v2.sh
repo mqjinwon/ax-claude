@@ -73,9 +73,9 @@ assert_field       "T2-6: 'rivew' → code_review (typo)"        "코드 rivew �
 # ── Tier 3: TF-IDF match ──────────────────────────────────────────────────────
 echo "=== Tier 3: TF-IDF match ==="
 # Requires examples: field in skill-routing.yaml (Task 5 adds them)
-assert_field       "T3-1: natural lang → debugging (TF-IDF)"   "어디서 죽는지 모르겠어"   "MATCH"      "debugging"
-assert_field       "T3-2: SOURCE=tfidf"                         "어디서 죽는지 모르겠어"   "SOURCE"     "tfidf"
-assert_field_exists "T3-3: CONFIDENCE present for tfidf"         "어디서 죽는지 모르겠어"   "CONFIDENCE"
+assert_field       "T3-1: natural lang → debugging (TF-IDF)"   "나는데 어디서 죽는지 모르겠어"   "MATCH"      "debugging"
+assert_field       "T3-2: SOURCE=tfidf"                         "나는데 어디서 죽는지 모르겠어"   "SOURCE"     "tfidf"
+assert_field_exists "T3-3: CONFIDENCE present for tfidf"         "나는데 어디서 죽는지 모르겠어"   "CONFIDENCE"
 
 echo ""
 echo "Results: $PASS passed, $FAIL failed"

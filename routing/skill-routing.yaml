@@ -69,9 +69,7 @@ categories:
       - "이 코드가 왜 안 되지?"
       - "segfault가 발생해서 원인을 찾아야 해"
       - "exception이 뜨는데 어떻게 고치지?"
-      - "어디서 죽는지 모르겠어"
-      - "죽는 지점을 찾아야 해"
-      - "왜 죽는지 알 수가 없어"
+      - "빌드는 되는데 실행하면 바로 꺼져"
 
   planning:
     canonical: oh-my-claudecode:plan
