@@ -12,9 +12,11 @@ export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
 run_hook() {
   local prompt="$1"
   local input
-  input=$(printf '{"prompt":"%s","cwd":"/tmp","session_id":"test-123"}' "$prompt")
-  OUT=$(printf '%s' "$input" | bash "$SCRIPT" 2>/dev/null); EC=$?
-  printf '%s\n%s' "$EC" "$OUT"
+  input=$(jq -n --arg p "$prompt" '{"prompt":$p,"cwd":"/tmp","session_id":"test-123"}')
+  OUT=$(printf '%s' "$input" | bash "$SCRIPT" 2>/dev/null)
+  EC=$?
+  echo "$EC"
+  echo "$OUT"
 }
 
 # Test 1: no match → exit 0, empty output

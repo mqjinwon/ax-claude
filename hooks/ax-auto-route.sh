@@ -31,6 +31,7 @@ ROUTE_OUT=$(python3 "$ROUTE_BIN" "$PROMPT" "$ROUTING" 2>/dev/null || true)
 CANONICAL=$(printf '%s' "$ROUTE_OUT" | grep '^CANONICAL=' | cut -d= -f2-)
 MATCH=$(printf '%s' "$ROUTE_OUT" | grep '^MATCH=' | cut -d= -f2-)
 [ -n "$CANONICAL" ] || exit 0
+[ -n "$MATCH" ] || exit 0
 
 # Check omc_covered: suppress if OMC keyword-detector already handles this category
 OMC_COVERED=$(python3 - "$ROUTING" "$MATCH" << 'PY' 2>/dev/null || echo "false"
@@ -51,6 +52,8 @@ escape_for_json() {
   s="${s//\\/\\\\}"
   s="${s//\"/\\\"}"
   s="${s//$'\n'/\\n}"
+  s="${s//$'\r'/\\r}"
+  s="${s//$'\t'/\\t}"
   printf '%s' "$s"
 }
 
