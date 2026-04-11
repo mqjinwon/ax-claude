@@ -61,7 +61,7 @@ INFORMATIONAL_PATTERNS = [
     ),
 ]
 ACTION_OVERRIDE = re.compile(
-    r'(?:써줘|(?<![가-힣])해줘|만들어|시작해|돌려|구현해|배포해|push|run|start|deploy|ship|fix)',
+    r'(?:써줘|(?<![가-힣])해줘|만들어|시작해|돌려|구현해|배포해|\b(?:push|run|start|deploy|ship|fix)\b)',
     re.I | re.U,
 )
 
