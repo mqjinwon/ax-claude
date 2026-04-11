@@ -45,15 +45,23 @@ append_log() {
   [ -n "$LOG_FILE" ] || return 0
   local ts; ts=$(date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
   local prompt_json; prompt_json=$(json_prompt "$PROMPT")
-  local cat_json src_json
-  if [ "$category" = "null" ]; then cat_json="null"; else cat_json="\"$category\""; fi
-  if [ "$source"   = "null" ]; then src_json="null";  else src_json="\"$source\"";  fi
-  printf '{"ts":"%s","prompt":%s,"category":%s,"source":%s,"confidence":%s}\n' \
-    "$ts" "$prompt_json" "$cat_json" "$src_json" "$confidence" >> "$LOG_FILE"
+  local conf_val="$confidence"
+  python3 -c "
+import json, sys
+ts, prompt, category, source, conf = sys.argv[1:]
+entry = {
+    'ts': ts,
+    'prompt': json.loads(prompt),
+    'category': None if category == 'null' else category,
+    'source': None if source == 'null' else source,
+    'confidence': None if conf == 'null' else float(conf),
+}
+print(json.dumps(entry, ensure_ascii=False))
+" "$ts" "$prompt_json" "$category" "$source" "$conf_val" >> "$LOG_FILE" 2>/dev/null || true
   # Rolling: keep last 500 lines
   local line_count; line_count=$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)
   if [ "$line_count" -gt 500 ]; then
-    local tmp; tmp=$(mktemp)
+    local tmp; tmp=$(mktemp "${LOG_FILE}.XXXXXX")
     tail -n 500 "$LOG_FILE" > "$tmp"
     mv "$tmp" "$LOG_FILE"
   fi
@@ -70,8 +78,8 @@ fi
 
 CANONICAL=$(printf '%s' "$ROUTE_OUT" | grep '^CANONICAL=' | cut -d= -f2- || true)
 MATCH=$(printf '%s' "$ROUTE_OUT" | grep '^MATCH=' | cut -d= -f2- || true)
-CONFIDENCE=$(printf '%s' "$ROUTE_OUT" | grep '^CONFIDENCE=' | cut -d= -f2- || true)
-SOURCE=$(printf '%s' "$ROUTE_OUT" | grep '^SOURCE=' | cut -d= -f2- || true)
+CONFIDENCE=$(printf '%s' "$ROUTE_OUT" | grep '^CONFIDENCE=' | head -1 | cut -d= -f2- || true)
+SOURCE=$(printf '%s' "$ROUTE_OUT" | grep '^SOURCE=' | head -1 | cut -d= -f2- || true)
 
 [ -n "$CANONICAL" ] || exit 0
 [ -n "$MATCH" ]     || exit 0
@@ -105,7 +113,7 @@ escape_for_json() {
 }
 
 SUFFIX=""
-if [ -n "$CONFIDENCE" ] && ! awk "BEGIN{exit !($CONFIDENCE >= 0.85)}" 2>/dev/null; then
+if [ -n "$CONFIDENCE" ] && ! awk -v c="$CONFIDENCE" 'BEGIN{exit !(c >= 0.85)}' 2>/dev/null; then
   PREFIX="🤔 **AX Router**"
   SUFFIX=" (낮은 확신 — 확인 권장)"
 else
