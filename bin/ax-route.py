@@ -8,14 +8,21 @@
 #   CANONICAL=<skill>
 #   MODE=orchestrator|canonical
 #   ORCHESTRATOR=<skill>   (only when MODE=canonical and orchestrator exists)
+#   CONFIDENCE=0.xx        (Tier 2/3 only)
+#   SOURCE=fuzzy|tfidf     (Tier 2/3 only)
 #
-# Exits 0 with empty output if no match.
+# Exits 0 with empty output if no match or informational query.
 
+import difflib
+import math
 import os
+import re
 import sys
+from collections import Counter
 
 import yaml
 
+# ── Args / YAML load ──────────────────────────────────────────────────────────
 if len(sys.argv) < 2:
     sys.exit(0)
 
@@ -31,13 +38,47 @@ with open(ROUTING_PATH) as f:
 
 hidden = set(data.get("hidden", []))
 categories = data.get("categories", {})
-inp_lower = inp.lower()
-best_match = None
 
+# ── Sanitize ──────────────────────────────────────────────────────────────────
+def sanitize(text: str) -> str:
+    text = re.sub(r'<!--[\s\S]*?-->', '', text)
+    text = re.sub(r'```[\s\S]*?```', '', text)
+    text = re.sub(r'`[^`]+`', '', text)
+    text = re.sub(r'https?://\S+', '', text)
+    text = re.sub(r'^\s*>.*$', '', text, flags=re.M)
+    return text
 
+# ── Tier 0: Informational Filter ──────────────────────────────────────────────
+INFORMATIONAL_PATTERNS = [
+    re.compile(
+        r"\b(?:what(?:'s|\s+is)|what\s+are|how\s+(?:to|do\s+i)\s+use|"
+        r"explain|tell\s+me\s+about|describe)\b", re.I
+    ),
+    re.compile(
+        r'(?:뭐야|뭔데|무엇(?:이야|인가요)?|어떤\s*기능|기능\s*(?:알려|설명|뭐)|'
+        r'설명해\s?줘|어떤\s*건데|그게\s*뭐|이게\s*뭔|어떻게\s*(?:쓰|사용|작동))',
+        re.U,
+    ),
+]
+ACTION_OVERRIDE = re.compile(
+    r'(?:써줘|(?<![가-힣])해줘|만들어|시작해|돌려|구현해|배포해|push|run|start|deploy|ship|fix)',
+    re.I | re.U,
+)
+
+def is_informational(text: str) -> bool:
+    if ACTION_OVERRIDE.search(text):
+        return False
+    return any(p.search(text) for p in INFORMATIONAL_PATTERNS)
+
+clean = sanitize(inp)
+if is_informational(clean):
+    sys.exit(0)
+
+inp_lower = clean.lower()
+
+# ── Tier 1: Exact keyword match ───────────────────────────────────────────────
 def requires_word_boundaries(trigger: str) -> bool:
     return any(ch.isascii() and ch.isalnum() for ch in trigger)
-
 
 def has_word_boundaries(text: str, start: int, end: int) -> bool:
     before = text[start - 1] if start > 0 else ""
@@ -46,16 +87,16 @@ def has_word_boundaries(text: str, start: int, end: int) -> bool:
     after_ok = not after or not (after.isascii() and after.isalnum())
     return before_ok and after_ok
 
-
 def iter_match_indexes(text: str, trigger: str):
     start = 0
     while True:
-        match_index = text.find(trigger, start)
-        if match_index == -1:
+        idx = text.find(trigger, start)
+        if idx == -1:
             return
-        yield match_index
-        start = match_index + 1
+        yield idx
+        start = idx + 1
 
+best_match = None
 for category_index, (cat, info) in enumerate(categories.items()):
     if info.get("canonical") in hidden:
         continue
@@ -70,7 +111,6 @@ for category_index, (cat, info) in enumerate(categories.items()):
                     end_index = match_index + len(lowered_trigger)
                     if not has_word_boundaries(inp_lower, match_index, end_index):
                         continue
-
                 candidate = (
                     len(lowered_trigger),
                     1 if mode == "orchestrator" else 0,
@@ -97,3 +137,7 @@ if best_match is not None:
             print(f"ORCHESTRATOR={orch}")
         print("MODE=canonical")
     sys.exit(0)
+
+# ── Tier 2: Fuzzy match (Task 3 추가 예정) ────────────────────────────────────
+# ── Tier 3: TF-IDF match (Task 4 추가 예정) ───────────────────────────────────
+sys.exit(0)
