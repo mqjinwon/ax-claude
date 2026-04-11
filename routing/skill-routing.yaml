@@ -67,6 +67,7 @@ categories:
 
   planning:
     canonical: oh-my-claudecode:plan
+    omc_covered: true          # OMC detects: "ralplan"
     aliases:
       - superpowers:writing-plans
     trigger:
@@ -81,6 +82,7 @@ categories:
 
   code_review:
     canonical: superpowers:requesting-code-review
+    omc_covered: true          # OMC detects: "code review", "security review"
     aliases:
       - superpowers:receiving-code-review
     trigger:
@@ -95,6 +97,7 @@ categories:
     # For "implement everything autonomously" — parallel task completion
     # NOTE: this is NOT for git ship/PR creation → use ship_deploy category
     canonical: oh-my-claudecode:ultrawork
+    omc_covered: true          # OMC detects: "autopilot", "ultrawork", "ralph", "ralplan"
     aliases:
       - oh-my-claudecode:autopilot
       - oh-my-claudecode:ralph

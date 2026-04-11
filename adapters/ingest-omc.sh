@@ -8,7 +8,8 @@
 
 set -euo pipefail
 CONTENT_FILE=""
-trap 'rm -f "${CONTENT_FILE:-}"' EXIT
+PM_CONTENT_FILE=""
+trap 'rm -f "${CONTENT_FILE:-}" "${PM_CONTENT_FILE:-}" "${PM_CONTENT_FILE:-}.new"' EXIT
 
 PROJECT_ROOT="${1:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 MEMORY="$PROJECT_ROOT/.ax/memory/MEMORY.md"
@@ -67,40 +68,82 @@ fi
 
 # ── Session History from most recent agent-replay-*.jsonl ────────────────────
 REPLAY_FILE=$(ls -t "$OMC_STATE"/agent-replay-*.jsonl 2>/dev/null | head -1 || true)
-[ -n "$REPLAY_FILE" ] || exit 0
 
-SESSION_ID=$(basename "$REPLAY_FILE" .jsonl | sed 's/^agent-replay-//')
-ENTRY_ID="${SESSION_ID:0:12}-omc"
+if [ -n "$REPLAY_FILE" ]; then
+  SESSION_ID=$(basename "$REPLAY_FILE" .jsonl | sed 's/^agent-replay-//')
+  ENTRY_ID="${SESSION_ID:0:12}-omc"
 
-# Skip if already ingested
-grep -qF "entry:${ENTRY_ID}" "$MEMORY" 2>/dev/null && exit 0
+  # Skip if already ingested
+  if ! grep -qF "entry:${ENTRY_ID}" "$MEMORY" 2>/dev/null; then
+    AGENT_TYPES=$(jq -r 'select(.event == "agent_start") | .agent_type' "$REPLAY_FILE" 2>/dev/null \
+      | sort -u | tr '\n' ',' | sed 's/,$//')
+    SUCCEEDED=$(jq -r 'select(.event == "agent_stop" and .success == true) | .agent_type' \
+      "$REPLAY_FILE" 2>/dev/null | wc -l | tr -d ' ')
+    FAILED=$(jq -r 'select(.event == "agent_stop" and .success == false) | .agent_type' \
+      "$REPLAY_FILE" 2>/dev/null | wc -l | tr -d ' ')
 
-AGENT_TYPES=$(jq -r 'select(.event == "agent_start") | .agent_type' "$REPLAY_FILE" 2>/dev/null \
-  | sort -u | tr '\n' ',' | sed 's/,$//')
-SUCCEEDED=$(jq -r 'select(.event == "agent_stop" and .success == true) | .agent_type' \
-  "$REPLAY_FILE" 2>/dev/null | wc -l | tr -d ' ')
-FAILED=$(jq -r 'select(.event == "agent_stop" and .success == false) | .agent_type' \
-  "$REPLAY_FILE" 2>/dev/null | wc -l | tr -d ' ')
+    FILE_DATE=$(date_from_epoch "$(file_mtime "$REPLAY_FILE" 2>/dev/null || echo 0)")
 
-FILE_DATE=$(date_from_epoch "$(file_mtime "$REPLAY_FILE" 2>/dev/null || echo 0)")
+    STATUS_TAG=""
+    [ "$FAILED" -gt 0 ] && STATUS_TAG=" (${FAILED} failed)"
 
-STATUS_TAG=""
-[ "$FAILED" -gt 0 ] && STATUS_TAG=" (${FAILED} failed)"
+    CONTENT_FILE=$(mktemp)
+    # Prepend the new entry, keep existing history below
+    ax_get_section "$MEMORY" "session-history" \
+      | grep -v '^_No sessions recorded yet' > "$CONTENT_FILE" || true
 
-CONTENT_FILE=$(mktemp)
-# Prepend the new entry, keep existing history below
-ax_get_section "$MEMORY" "session-history" \
-  | grep -v '^_No sessions recorded yet' > "$CONTENT_FILE" || true
+    {
+      printf '<!-- entry:%s -->\n' "$ENTRY_ID"
+      printf '%s\n' "- **${FILE_DATE}** OMC \`${SESSION_ID:0:8}\` — ${SUCCEEDED} agents (${AGENT_TYPES})${STATUS_TAG}"
+      cat "$CONTENT_FILE"
+    } > "${CONTENT_FILE}.new" && mv "${CONTENT_FILE}.new" "$CONTENT_FILE"
 
-{
-  printf '<!-- entry:%s -->\n' "$ENTRY_ID"
-  printf '%s\n' "- **${FILE_DATE}** OMC \`${SESSION_ID:0:8}\` — ${SUCCEEDED} agents (${AGENT_TYPES})${STATUS_TAG}"
-  cat "$CONTENT_FILE"
-} > "${CONTENT_FILE}.new" && mv "${CONTENT_FILE}.new" "$CONTENT_FILE"
+    if [ ! -s "$CONTENT_FILE" ]; then
+      printf '_No sessions recorded yet.\n' > "$CONTENT_FILE"
+    fi
 
-if [ ! -s "$CONTENT_FILE" ]; then
-  printf '_No sessions recorded yet.\n' > "$CONTENT_FILE"
+    ax_replace_section "$MEMORY" "session-history" "$CONTENT_FILE"
+    rm -f "$CONTENT_FILE"
+  fi
 fi
 
-ax_replace_section "$MEMORY" "session-history" "$CONTENT_FILE"
-rm -f "$CONTENT_FILE"
+# ── Project Memory from .omc/project-memory.json ─────────────────────────────
+PROJECT_MEMORY_FILE="$PROJECT_ROOT/.omc/project-memory.json"
+DECISIONS_FILE="$PROJECT_ROOT/.ax/memory/decisions.md"
+
+if [ -f "$PROJECT_MEMORY_FILE" ] && [ -f "$DECISIONS_FILE" ] && command -v jq >/dev/null 2>&1; then
+  ENTRIES=$(jq -r '
+    (.entries // [])
+    | sort_by(.createdAt) | reverse | .[0:10]
+    | .[]
+    | [.id, .createdAt[:10], .content] | @tsv
+  ' "$PROJECT_MEMORY_FILE" 2>/dev/null || true)
+
+  if [ -n "$ENTRIES" ]; then
+    PM_CONTENT_FILE=$(mktemp)
+
+    ax_get_section "$DECISIONS_FILE" "decisions" \
+      | grep -v '^_No decisions recorded yet' > "$PM_CONTENT_FILE" || true
+
+    ADDED=0
+    while IFS=$'\t' read -r ENTRY_ID ENTRY_DATE ENTRY_CONTENT; do
+      [ -n "$ENTRY_ID" ] || continue
+      SHORT_ID="${ENTRY_ID:0:8}"
+      DEDUP_ID="omc-${SHORT_ID}"
+
+      grep -qF "entry:${DEDUP_ID}" "$DECISIONS_FILE" 2>/dev/null && continue
+
+      {
+        printf '<!-- entry:%s -->\n' "$DEDUP_ID"
+        printf '**%s** (omc): %s\n\n' "$ENTRY_DATE" "$ENTRY_CONTENT"
+        cat "$PM_CONTENT_FILE"
+      } > "${PM_CONTENT_FILE}.new" && mv "${PM_CONTENT_FILE}.new" "$PM_CONTENT_FILE"
+      ADDED=$((ADDED + 1))
+    done <<< "$ENTRIES"
+
+    if [ "$ADDED" -gt 0 ]; then
+      ax_replace_section "$DECISIONS_FILE" "decisions" "$PM_CONTENT_FILE"
+    fi
+    rm -f "$PM_CONTENT_FILE"
+  fi
+fi
