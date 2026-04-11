@@ -210,7 +210,7 @@ def build_tfidf_vectors(categories: dict) -> dict:
     cat_docs = {
         cat: info.get("examples", [])
         for cat, info in categories.items()
-        if info.get("examples")
+        if info.get("examples") and info.get("canonical") not in hidden
     }
     if not cat_docs:
         return {}
