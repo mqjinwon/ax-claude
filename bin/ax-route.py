@@ -138,6 +138,59 @@ if best_match is not None:
         print("MODE=canonical")
     sys.exit(0)
 
-# ── Tier 2: Fuzzy match (Task 3 추가 예정) ────────────────────────────────────
+# ── Tier 2: Fuzzy match ───────────────────────────────────────────────────────
+FUZZY_THRESHOLD = 0.70
+
+def decompose_hangul(char: str) -> str:
+    code = ord(char)
+    if 0xAC00 <= code <= 0xD7A3:
+        code -= 0xAC00
+        jong = code % 28
+        jung = (code - jong) // 28 % 21
+        cho  = (code - jong) // 28 // 21
+        CHO  = "ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ"
+        JUNG = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ"
+        JONG = " ㄱㄲㄳㄴㄵㄶㄷㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅄㅅㅆㅇㅈㅊㅋㅌㅍㅎ"
+        return CHO[cho] + JUNG[jung] + (JONG[jong] if jong else "")
+    return char
+
+def jamo_similarity(a: str, b: str) -> float:
+    a_j = "".join(decompose_hangul(c) for c in a)
+    b_j = "".join(decompose_hangul(c) for c in b)
+    return difflib.SequenceMatcher(None, a_j, b_j).ratio()
+
+def fuzzy_match(inp_lower: str, categories: dict) -> tuple:
+    best_cat, best_score = None, 0.0
+    for cat, info in categories.items():
+        if info.get("canonical") in hidden:
+            continue
+        all_triggers = info.get("trigger", []) + info.get("orchestrator_trigger", [])
+        for trigger in all_triggers:
+            t = trigger.lower()
+            score = difflib.SequenceMatcher(None, inp_lower, t).ratio()
+            for word in inp_lower.split():
+                score = max(score, difflib.SequenceMatcher(None, word, t).ratio())
+                score = max(score, jamo_similarity(word, t))
+            win = len(t) + 2
+            for i in range(max(0, len(inp_lower) - win + 1)):
+                w = inp_lower[i:i + win]
+                score = max(score, difflib.SequenceMatcher(None, w, t).ratio())
+            if score > best_score:
+                best_score, best_cat = score, cat
+    return (best_cat, best_score) if best_score >= FUZZY_THRESHOLD else (None, best_score)
+
+fuzzy_cat, fuzzy_score = fuzzy_match(inp_lower, categories)
+if fuzzy_cat is not None:
+    info = categories[fuzzy_cat]
+    print(f"MATCH={fuzzy_cat}")
+    print(f"CANONICAL={info['canonical']}")
+    orch = info.get("orchestrator", "")
+    if orch:
+        print(f"ORCHESTRATOR={orch}")
+    print("MODE=canonical")
+    print(f"CONFIDENCE={fuzzy_score:.2f}")
+    print("SOURCE=fuzzy")
+    sys.exit(0)
+
 # ── Tier 3: TF-IDF match (Task 4 추가 예정) ───────────────────────────────────
 sys.exit(0)
