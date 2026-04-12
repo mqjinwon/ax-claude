@@ -24,17 +24,19 @@ _lock = threading.Lock()
 def read_q():
     try:
         return json.loads(Path(_args.q_file).read_text())
-    except Exception:
+    except Exception as e:
+        print(f"read_q error: {e}", file=sys.stderr)
         return {}
 
 
 def write_pipe(line: str):
-    try:
-        with open(_args.pipe, "w") as f:
-            f.write(line + "\n")
-            f.flush()
-    except Exception as e:
-        print(f"pipe write error: {e}", file=sys.stderr)
+    with _lock:
+        try:
+            with open(_args.pipe, "w") as f:
+                f.write(line + "\n")
+                f.flush()
+        except Exception as e:
+            print(f"pipe write error: {e}", file=sys.stderr)
 
 
 # ── Endpoints ────────────────────────────────────────────────────────────────
@@ -150,8 +152,7 @@ def build_html(mode: str, concept: str, total: int) -> str:
       <div class="flex items-center gap-3">
         <button id="hint-btn" onclick="showModal('hint')"
           class="text-xs font-semibold px-3 py-1.5 rounded-lg border flex items-center gap-1"
-          style="color:var(--blue);background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.25)"
-          {'style="display:none"' if mode == 'quiz' else ''}>💡 답 받기</button>
+          style="color:var(--blue);background:rgba(59,130,246,.08);border-color:rgba(59,130,246,.25){';display:none' if mode == 'quiz' else ''}">💡 답 받기</button>
         <button onclick="showModal('giveup')" class="text-xs text-gray-400 hover:text-red-500 transition-colors">포기</button>
       </div>
       <div class="flex items-center gap-3">
@@ -332,9 +333,10 @@ function showResult(q){{
     :'세션 중단';
 
   const r=q.result||{{}};
+  function esc(s){{const d=document.createElement('div');d.textContent=String(s);return d.innerHTML;}}
   let body='';
   if(r.weak&&r.weak.length)
-    body+=`<p class="mb-2">약점: ${{r.weak.join(', ')}}</p>`;
+    body+=`<p class="mb-2">약점: ${{r.weak.map(esc).join(', ')}}</p>`;
   if(r.score!==undefined&&r.score!==null)
     body+=`<p class="mb-2">점수: ${{r.score}}/${{TOTAL}}</p>`;
   body+=`<p class="mt-4 text-xs font-mono surface2 p-2 rounded">/ax-study quiz</p>`;
