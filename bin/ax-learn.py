@@ -26,7 +26,10 @@ known_examples: dict = defaultdict(set)
 if ROUTING_PATH and os.path.exists(ROUTING_PATH):
     import yaml
     with open(ROUTING_PATH) as f:
-        data = yaml.safe_load(f)
+        try:
+            data = yaml.safe_load(f) or {}
+        except yaml.YAMLError:
+            data = {}
     for cat, info in data.get("categories", {}).items():
         for t in info.get("trigger", []) + info.get("orchestrator_trigger", []):
             known_triggers[cat].add(t.lower())
@@ -101,8 +104,8 @@ lines = [
 if examples_candidates:
     for cat, prompts in examples_candidates.items():
         for p in prompts:
-            escaped = p.replace("|", "\\|")
-            lines.append(f'| {cat} | "{escaped}" | `/ax learn` 또는 수동 추가 |')
+            p_safe = p.replace("|", "\\|").replace("\n", " ").replace("\r", "").replace("\t", " ")
+            lines.append(f'| {cat} | "{p_safe}" | `/ax learn` 또는 수동 추가 |')
 else:
     lines.append("| — | (없음) | — |")
 
@@ -114,8 +117,8 @@ lines += [
 ]
 if trigger_candidates:
     for prompt, cat, score in trigger_candidates:
-        escaped = prompt.replace("|", "\\|")
-        lines.append(f'| "{escaped}" | {cat} | {score:.2f} |')
+        p_safe = prompt.replace("|", "\\|").replace("\n", " ").replace("\r", "").replace("\t", " ")
+        lines.append(f'| "{p_safe}" | {cat} | {score:.2f} |')
 else:
     lines.append("| — | (없음) | — |")
 
@@ -130,7 +133,7 @@ if os.path.exists(SUGGESTIONS_PATH):
         existing = f.read()
     pattern = r'<!-- BEGIN:routing-suggestions -->.*?<!-- END:routing-suggestions -->'
     if re.search(pattern, existing, flags=re.DOTALL):
-        updated = re.sub(pattern, new_section, existing, flags=re.DOTALL)
+        updated = re.sub(pattern, new_section, existing, count=1, flags=re.DOTALL)
     else:
         # Section not found — append
         updated = existing.rstrip("\n") + "\n\n" + new_section + "\n"
