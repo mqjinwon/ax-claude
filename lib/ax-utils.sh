@@ -95,13 +95,13 @@ ax_migrate_topic_file() {
   local appended=0
   for section in $sections; do
     # 이미 있으면 skip
-    grep -q "<!-- BEGIN:${section} -->" "$file" && continue
+    grep -qF "<!-- BEGIN:${section} -->" "$file" && continue
 
     # 템플릿에서 해당 섹션 블록(헤딩 포함) 추출하여 append
     awk -v sec="$section" '
       /^## / { heading=$0 }
       $0 == "<!-- BEGIN:" sec " -->" { in_s=1; if (heading) print heading; print; next }
-      in_s && $0 == "<!-- END:" sec " -->" { print; in_s=0; next }
+      in_s && $0 == "<!-- END:" sec " -->" { print; in_s=0; heading=""; next }
       in_s { print }
     ' "$template" >> "$file"
 
