@@ -1,3 +1,4 @@
+<!-- ax-template-version: 2 -->
 # Study Notes — {{project_slug}}
 
 > Managed by /ax-study. Edit content inside sections freely; do not modify the delimiter comments.
