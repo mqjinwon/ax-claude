@@ -53,6 +53,7 @@ run_ingest() {
   "$ADAPTER_DIR/ingest-omc.sh"        "$PROJECT_ROOT"
   "$ADAPTER_DIR/ingest-research.sh"   "$PROJECT_ROOT"
   "$ADAPTER_DIR/ax-memory-compact.sh" "$PROJECT_ROOT"
+  "$ADAPTER_DIR/ingest-routing.sh"    "$PROJECT_ROOT"
 }
 
 if command -v flock >/dev/null 2>&1; then
