@@ -98,9 +98,22 @@ ax_migrate_topic_file() {
     grep -qF "<!-- BEGIN:${section} -->" "$file" && continue
 
     # 템플릿에서 해당 섹션 블록(헤딩 포함) 추출하여 append
-    awk -v sec="$section" '
+    # 헤딩이 이미 파일에 있으면 awk에서 헤딩 출력 생략
+    HEADING=$(awk -v sec="$section" '
+      /^## / { h=$0 }
+      $0 == "<!-- BEGIN:" sec " -->" { print h; exit }
+    ' "$template")
+    PRINT_HEADING=1
+    [ -n "$HEADING" ] && grep -qF "$HEADING" "$file" && PRINT_HEADING=0
+
+    echo "" >> "$file"
+    awk -v sec="$section" -v ph="$PRINT_HEADING" '
       /^## / { if (!in_s) heading=$0 }
-      $0 == "<!-- BEGIN:" sec " -->" { in_s=1; if (heading) print heading; print; next }
+      $0 == "<!-- BEGIN:" sec " -->" {
+        in_s=1
+        if (ph == "1" && heading) print heading
+        print; next
+      }
       in_s && $0 == "<!-- END:" sec " -->" { print; in_s=0; heading=""; next }
       in_s { print }
     ' "$template" >> "$file"
