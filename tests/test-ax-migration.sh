@@ -157,6 +157,46 @@ DOCEOF
   fi
 }
 
+# --- Test: ax_ensure_topic_file이 기존 파일에도 migration 실행 ---
+{
+  PROJ=$(mktemp -d "$TMPDIR_ROOT/proj-XXXX")
+  mkdir -p "$PROJ/.ax/memory"
+  TOPIC_FILE="$PROJ/.ax/memory/study-notes.md"
+  TEMPLATE_FILE="$TMPDIR_ROOT/STUDY_NOTES.template.md"
+
+  cat > "$TEMPLATE_FILE" << 'DOCEOF'
+<!-- ax-template-version: 2 -->
+# Study Notes — {{project_slug}}
+
+<!-- BEGIN:active-document -->
+_No document loaded yet._
+<!-- END:active-document -->
+
+## Mastery
+<!-- BEGIN:mastery -->
+_No mastery data yet._
+<!-- END:mastery -->
+DOCEOF
+
+  # 기존 파일 (버전 1, mastery 없음)
+  cat > "$TOPIC_FILE" << 'DOCEOF'
+<!-- ax-template-version: 1 -->
+# Study Notes — myproject
+
+<!-- BEGIN:active-document -->
+existing data
+<!-- END:active-document -->
+DOCEOF
+
+  ax_ensure_topic_file "$PROJ" "study-notes" "$TEMPLATE_FILE"
+
+  if grep -q '<!-- BEGIN:mastery -->' "$TOPIC_FILE" && grep -q 'existing data' "$TOPIC_FILE"; then
+    ok "ax_ensure_topic_file: migration 실행 + 기존 데이터 보존"
+  else
+    fail "ax_ensure_topic_file: migration 미실행 또는 데이터 손상"
+  fi
+}
+
 echo ""
 echo "Results: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

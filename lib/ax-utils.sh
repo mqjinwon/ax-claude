@@ -120,20 +120,23 @@ ax_migrate_topic_file() {
 
 # ax_ensure_topic_file PROJECT_ROOT TOPIC TEMPLATE_FILE
 # Bootstraps a topic file from template if it doesn't exist yet.
+# If file exists, runs ax_migrate_topic_file to add any missing sections.
 ax_ensure_topic_file() {
   local project_root="$1"
   local topic="$2"      # e.g. "research-notes", "experiment-log", "decisions"
   local template="$3"   # absolute path to template file
   local topic_file="$project_root/.ax/memory/${topic}.md"
 
-  [ -f "$topic_file" ] && return 0
-  [ -f "$template" ] || return 1
-
-  local slug
-  slug=$(basename "$project_root")
-  local slug_escaped
-  slug_escaped=$(printf '%s' "$slug" | sed 's/[&\]/\\&/g')
-  sed "s/{{project_slug}}/$slug_escaped/g" "$template" > "$topic_file"
+  if [ ! -f "$topic_file" ]; then
+    [ -f "$template" ] || return 1
+    local slug slug_escaped
+    slug=$(basename "$project_root")
+    slug_escaped=$(printf '%s' "$slug" | sed 's/[&\]/\\&/g')
+    sed "s/{{project_slug}}/$slug_escaped/g" "$template" > "$topic_file"
+  else
+    # 파일이 이미 있으면 migration으로 누락 섹션만 보완
+    ax_migrate_topic_file "$topic_file" "$template"
+  fi
 }
 
 # ax_get_topic_section PROJECT_ROOT TOPIC SECTION
