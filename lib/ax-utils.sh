@@ -68,22 +68,88 @@ ax_get_section() {
   ' "$file" 2>/dev/null
 }
 
+# ax_migrate_topic_file FILE TEMPLATE_FILE
+# 템플릿에 있는 섹션 중 FILE에 없는 것을 기본값과 함께 append.
+# 버전 헤더(<!-- ax-template-version: N -->)가 같으면 skip.
+ax_migrate_topic_file() {
+  local file="$1"
+  local template="$2"
+
+  [ -f "$file" ]     || return 0
+  [ -f "$template" ] || return 0
+
+  # 버전 비교 — 같으면 skip
+  local file_ver tmpl_ver
+  file_ver=$(grep -m1 'ax-template-version:' "$file"     2>/dev/null || true)
+  file_ver=$(printf '%s' "$file_ver" | grep -o '[0-9]*' | head -1 || true)
+  tmpl_ver=$(grep -m1 'ax-template-version:' "$template" 2>/dev/null || true)
+  tmpl_ver=$(printf '%s' "$tmpl_ver" | grep -o '[0-9]*' | head -1 || true)
+  file_ver="${file_ver:-0}"
+  tmpl_ver="${tmpl_ver:-0}"
+  [ "$file_ver" -ge "$tmpl_ver" ] && return 0
+
+  # 템플릿에서 BEGIN 마커 목록 추출
+  local sections
+  sections=$(grep -o 'BEGIN:[A-Za-z0-9_-]*' "$template" | sed 's/BEGIN://' || true)
+
+  local appended=0
+  for section in $sections; do
+    # 이미 있으면 skip
+    grep -qF "<!-- BEGIN:${section} -->" "$file" && continue
+
+    # 템플릿에서 해당 섹션 블록(헤딩 포함) 추출하여 append
+    # 헤딩이 이미 파일에 있으면 awk에서 헤딩 출력 생략
+    HEADING=$(awk -v sec="$section" '
+      /^## / { h=$0 }
+      $0 == "<!-- BEGIN:" sec " -->" { print h; exit }
+    ' "$template")
+    PRINT_HEADING=1
+    [ -n "$HEADING" ] && grep -qF "$HEADING" "$file" && PRINT_HEADING=0
+
+    echo "" >> "$file"
+    awk -v sec="$section" -v ph="$PRINT_HEADING" '
+      /^## / { if (!in_s) heading=$0 }
+      $0 == "<!-- BEGIN:" sec " -->" {
+        in_s=1
+        if (ph == "1" && heading) print heading
+        print; next
+      }
+      in_s && $0 == "<!-- END:" sec " -->" { print; in_s=0; heading=""; next }
+      in_s { print }
+    ' "$template" >> "$file"
+
+    appended=1
+  done
+
+  # 버전 헤더 갱신
+  if [ "$appended" -eq 1 ]; then
+    if grep -q 'ax-template-version:' "$file"; then
+      sed -i "s/ax-template-version: [0-9]*/ax-template-version: ${tmpl_ver}/" "$file"
+    else
+      sed -i "1s/^/<!-- ax-template-version: ${tmpl_ver} -->\n/" "$file"
+    fi
+  fi
+}
+
 # ax_ensure_topic_file PROJECT_ROOT TOPIC TEMPLATE_FILE
 # Bootstraps a topic file from template if it doesn't exist yet.
+# If file exists, runs ax_migrate_topic_file to add any missing sections.
 ax_ensure_topic_file() {
   local project_root="$1"
   local topic="$2"      # e.g. "research-notes", "experiment-log", "decisions"
   local template="$3"   # absolute path to template file
   local topic_file="$project_root/.ax/memory/${topic}.md"
 
-  [ -f "$topic_file" ] && return 0
-  [ -f "$template" ] || return 1
-
-  local slug
-  slug=$(basename "$project_root")
-  local slug_escaped
-  slug_escaped=$(printf '%s' "$slug" | sed 's/[&\]/\\&/g')
-  sed "s/{{project_slug}}/$slug_escaped/g" "$template" > "$topic_file"
+  if [ ! -f "$topic_file" ]; then
+    [ -f "$template" ] || return 1
+    local slug slug_escaped
+    slug=$(basename "$project_root")
+    slug_escaped=$(printf '%s' "$slug" | sed 's/[&\]/\\&/g')
+    sed "s/{{project_slug}}/$slug_escaped/g" "$template" > "$topic_file"
+  else
+    # 파일이 이미 있으면 migration으로 누락 섹션만 보완
+    ax_migrate_topic_file "$topic_file" "$template"
+  fi
 }
 
 # ax_get_topic_section PROJECT_ROOT TOPIC SECTION

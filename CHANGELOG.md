@@ -1,3 +1,17 @@
+## [1.20.0] — 2026-04-12
+
+### Added
+- `ax_migrate_topic_file`: 템플릿 버전이 올라갈 때 기존 topic 파일에 누락 섹션을 자동 append
+- `ax-template-version` 헤더: 템플릿 스키마 버전 추적, 불필요한 재실행 방지
+- `tests/test-ax-migration.sh`: migration 동작 검증 테스트
+- `ax-study`: 순차 학습("다음") 진행 시 Study Queue `[x]` 체크 및 Progress 자동 갱신 (설계 갭 수정)
+
+### Changed
+- `ax_ensure_topic_file`: 파일이 이미 존재할 때도 `ax_migrate_topic_file`을 호출하여 스키마 마이그레이션 실행
+
+### Fixed
+- `ax_replace_section`이 존재하지 않는 섹션에 대해 silent-fail하던 문제 (근본 원인: 섹션 마커 누락) — migration으로 예방
+
 # Changelog
 
 All notable changes to ax-claude are documented here.

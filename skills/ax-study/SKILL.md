@@ -147,6 +147,49 @@ Commands:
 
 ---
 
+## Section Complete Helper
+
+**Trigger:** 순차 학습에서 한 섹션 설명 완료 후 ("다음" 응답 직전) 호출.
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
+SECTION_PATTERN="<INSERT_SECTION_PATTERN>"   # 예: "§1\."
+
+# 1. study-queue: 해당 항목 [x] 체크
+QUEUE_FILE=$(mktemp)
+ax_get_section "$STUDY_NOTES" "study-queue" | \
+  sed "s/- \[ \] ${SECTION_PATTERN}/- [x] ${SECTION_PATTERN}/" > "$QUEUE_FILE"
+ax_replace_section "$STUDY_NOTES" "study-queue" "$QUEUE_FILE"
+rm -f "$QUEUE_FILE"
+
+# 2. active-document: Progress N/9 → (N+1)/9
+DOC_FILE=$(mktemp)
+CURRENT=$(ax_get_section "$STUDY_NOTES" "active-document" | grep 'Progress:' | grep -o '[0-9]*' | head -1)
+TOTAL=$(ax_get_section "$STUDY_NOTES" "active-document" | grep 'Progress:' | grep -o '[0-9]*' | tail -1)
+NEXT=$((CURRENT + 1))
+ax_get_section "$STUDY_NOTES" "active-document" | \
+  sed "s/Progress: ${CURRENT}\/${TOTAL}/Progress: ${NEXT}\/${TOTAL}/" | \
+  sed "s/Last studied: .*/Last studied: $(date +%Y-%m-%d)/" > "$DOC_FILE"
+ax_replace_section "$STUDY_NOTES" "active-document" "$DOC_FILE"
+rm -f "$DOC_FILE"
+```
+
+`<INSERT_SECTION_PATTERN>`을 완료된 섹션 패턴으로 교체하여 실행.
+
+---
+
 ## Init Mode
 
 **Trigger**: `/ax-study <pdf-path-or-url>`

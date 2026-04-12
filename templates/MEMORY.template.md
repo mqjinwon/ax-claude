@@ -1,3 +1,4 @@
+<!-- ax-template-version: 1 -->
 # AX Memory — {{project_slug}}
 
 > Auto-managed by ax-ingest. Edit content inside sections freely; do not modify the delimiter comments.

@@ -1,3 +1,4 @@
+<!-- ax-template-version: 1 -->
 # Experiment Log — {{project_slug}}
 
 > Auto-managed by ax-ingest. Loaded on demand when experiment results are queried.
