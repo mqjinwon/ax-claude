@@ -28,6 +28,8 @@ if command -v python3 >/dev/null 2>&1; then
       || python3 -m pip install pyyaml --quiet 2>/dev/null \
       || echo "  pyyaml  : install failed — /ax routing falls back to manual match"
   fi
+  pip install flask --quiet 2>/dev/null || pip3 install flask --quiet 2>/dev/null || \
+    echo "Warning: flask install failed. Run: pip install flask"
 else
   echo "  python3 : not found — /ax routing falls back to manual match"
 fi
