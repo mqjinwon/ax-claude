@@ -484,8 +484,13 @@ AX_TOTAL="${N:-5}"
 
 rm -f "$AX_PIPE" && mkfifo "$AX_PIPE"
 
-printf '{"mode":"quiz","concept":"","round":0,"total":%d,"text":"","status":"starting","result":{"score":null,"weak":[]}}' \
-  "$AX_TOTAL" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+data = {'mode': 'quiz', 'concept': '', 'round': 0,
+        'total': int(sys.argv[1]), 'text': '',
+        'status': 'starting', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$AX_TOTAL" > "$AX_Q_FILE"
 
 python3 "$PLUGIN_ROOT/bin/ax-feynman-server.py" \
   --mode quiz \
@@ -579,8 +584,13 @@ AX_TOTAL="${N:-5}"
 AX_QNUM=<현재 문제 번호>  # 1부터 시작
 AX_QTEXT="<질문 텍스트>"  # Claude: 실제 질문으로 교체
 
-printf '{"mode":"quiz","concept":"","round":%d,"total":%d,"text":"%s","status":"active","result":{"score":null,"weak":[]}}' \
-  "$AX_QNUM" "$AX_TOTAL" "$AX_QTEXT" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+data = {'mode': 'quiz', 'concept': '', 'round': int(sys.argv[1]),
+        'total': int(sys.argv[2]), 'text': sys.argv[3],
+        'status': 'active', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$AX_QNUM" "$AX_TOTAL" "$AX_QTEXT" > "$AX_Q_FILE"
 ```
 
 2. 터미널 출력:
@@ -658,8 +668,14 @@ AX_TOTAL="${N:-5}"
 SCORE=<정답 수>      # Claude: 실제 정답 개수로 교체
 WEAK_LIST="<약점1,약점2>"  # Claude: 쉼표 구분 약점 개념 목록으로 교체
 
-printf '{"mode":"quiz","concept":"","round":%d,"total":%d,"text":"완료","status":"complete","result":{"score":%d,"weak":["%s"]}}' \
-  "$AX_TOTAL" "$AX_TOTAL" "$SCORE" "$WEAK_LIST" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+weak = [w.strip() for w in sys.argv[4].split(',') if w.strip()]
+data = {'mode': 'quiz', 'concept': '', 'round': int(sys.argv[1]),
+        'total': int(sys.argv[2]), 'text': '완료',
+        'status': 'complete', 'result': {'score': int(sys.argv[3]), 'weak': weak}}
+print(json.dumps(data, ensure_ascii=False))
+" "$AX_TOTAL" "$AX_TOTAL" "$SCORE" "$WEAK_LIST" > "$AX_Q_FILE"
 sleep 1
 curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
 rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"
@@ -714,8 +730,13 @@ AX_TOTAL=5
 rm -f "$AX_PIPE" && mkfifo "$AX_PIPE"
 
 # 초기 q-file (placeholder; Step 2에서 실제 Q1으로 덮어씀)
-printf '{"mode":"feynman","concept":"%s","round":0,"total":%d,"text":"","status":"starting","result":{"score":null,"weak":[]}}' \
-  "$CONCEPT" "$AX_TOTAL" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': 0,
+        'total': int(sys.argv[2]), 'text': '',
+        'status': 'starting', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "$AX_TOTAL" > "$AX_Q_FILE"
 
 python3 "$PLUGIN_ROOT/bin/ax-feynman-server.py" \
   --mode feynman \
@@ -783,8 +804,13 @@ AX_TOTAL=5
 CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 
 Q1_TEXT="${CONCEPT}을 초등학생에게 설명한다고 가정하고 설명해보세요."
-printf '{"mode":"feynman","concept":"%s","round":1,"total":%d,"text":"%s","status":"active","result":{"score":null,"weak":[]}}' \
-  "$CONCEPT" "$AX_TOTAL" "$Q1_TEXT" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': 1,
+        'total': int(sys.argv[2]), 'text': sys.argv[3],
+        'status': 'active', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "$AX_TOTAL" "$Q1_TEXT" > "$AX_Q_FILE"
 ```
 
 터미널에도 출력:
@@ -852,8 +878,13 @@ AX_TOTAL=5
 AX_CURRENT_ROUND=<현재 라운드 번호>  # Claude: 현재 진행 중인 라운드 번호 (2~5)
 CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 QN_TEXT="{갭 기반 소크라테스 질문 텍스트}"
-printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"%s","status":"active","result":{"score":null,"weak":[]}}' \
-  "$CONCEPT" "$AX_CURRENT_ROUND" "$AX_TOTAL" "$QN_TEXT" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': int(sys.argv[2]),
+        'total': int(sys.argv[3]), 'text': sys.argv[4],
+        'status': 'active', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "$AX_CURRENT_ROUND" "$AX_TOTAL" "$QN_TEXT" > "$AX_Q_FILE"
 ```
 
 pipe에서 답변 대기:
@@ -918,8 +949,13 @@ AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
 AX_TOTAL=5
 AX_CURRENT_ROUND=<완료된 라운드 번호>  # Claude: 마지막으로 완료된 라운드 번호
 CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
-printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"완료","status":"complete","result":{"score":null,"weak":[]}}' \
-  "$CONCEPT" "${AX_CURRENT_ROUND:-5}" "$AX_TOTAL" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': int(sys.argv[2]),
+        'total': int(sys.argv[3]), 'text': '완료',
+        'status': 'complete', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "${AX_CURRENT_ROUND:-5}" "$AX_TOTAL" > "$AX_Q_FILE"
 sleep 1
 curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
 rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"
@@ -966,8 +1002,14 @@ AX_CURRENT_ROUND=<완료된 라운드 번호>  # Claude: 마지막으로 완료�
 CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 # Claude: WEAK_LIST에 실제 약점 개념 목록 (쉼표 구분)을 넣는다
 WEAK_LIST="약점1,약점2"
-printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"중단","status":"aborted","result":{"score":null,"weak":["%s"]}}' \
-  "$CONCEPT" "${AX_CURRENT_ROUND:-1}" "$AX_TOTAL" "$WEAK_LIST" > "$AX_Q_FILE"
+python3 -c "
+import json, sys
+weak = [w.strip() for w in sys.argv[4].split(',') if w.strip()]
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': int(sys.argv[2]),
+        'total': int(sys.argv[3]), 'text': '중단',
+        'status': 'aborted', 'result': {'score': None, 'weak': weak}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "${AX_CURRENT_ROUND:-1}" "$AX_TOTAL" "$WEAK_LIST" > "$AX_Q_FILE"
 sleep 1
 curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
 rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"

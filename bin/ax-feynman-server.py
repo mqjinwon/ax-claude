@@ -78,7 +78,6 @@ def shutdown():
 
 def build_html(mode: str, concept: str, total: int) -> str:
     mode_label = "Feynman" if mode == "feynman" else "Quiz"
-    show_hint = "true" if mode == "feynman" else "false"
     return f"""<!DOCTYPE html>
 <html lang="ko" data-theme="light">
 <head>
@@ -208,7 +207,7 @@ def build_html(mode: str, concept: str, total: int) -> str:
 </div>
 
 <script>
-const MODE='{mode}', TOTAL={total}, SHOW_HINT={show_hint};
+const MODE='{mode}', TOTAL={total};
 let history=[], curRound=0, waiting=false;
 
 // Theme
@@ -329,7 +328,7 @@ function showResult(q){{
   const ok=q.status==='complete';
   document.getElementById('res-icon').textContent=ok?'✅':'🏳️';
   document.getElementById('res-title').textContent=ok
-    ?'Feynman 검증 통과!'
+    ?(MODE==='quiz'?'Quiz 완료!':'Feynman 검증 통과!')
     :'세션 중단';
 
   const r=q.result||{{}};
