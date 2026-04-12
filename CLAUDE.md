@@ -25,8 +25,16 @@ Scheme:
 
 **README**: After every feature addition, update `README.md` with a user-facing usage guide — not internal implementation details.
 
+**CHANGELOG**: On every version bump, append a new entry to `CHANGELOG.md`:
+```markdown
+## [X.Y.Z] — YYYY-MM-DD
+### Added / Changed / Fixed
+- Feature description
+```
+
 Pre-PR checklist (verify before `gh pr create`):
 - [ ] VERSION bumped
 - [ ] `.claude-plugin/plugin.json` version matches
 - [ ] `.claude-plugin/marketplace.json` version matches (both occurrences)
-- [ ] `README.md` updated if new feature added
+- [ ] CHANGELOG.md entry added
+- [ ] README.md updated if new feature added
