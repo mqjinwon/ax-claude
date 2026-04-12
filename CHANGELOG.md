@@ -5,6 +5,20 @@ Format: `## [version] — YYYY-MM-DD` with Added / Changed / Fixed subsections.
 
 ---
 
+## [1.19.0] — 2026-04-12
+
+### Added
+- **Feynman + Quiz 웹 UI**: 브라우저 기반 인터랙티브 학습 UI
+  - `/ax-study feynman <개념>` → 즉시 브라우저 오픈, Q/A 히스토리 표시
+  - `/ax-study quiz` → 브라우저에서 문제 풀기
+  - 제출 / 답 받기(Feynman) / 포기 커스텀 모달
+  - Light/Dark 모드 토글 (기본: Light)
+  - Named pipe를 통한 브라우저 → Claude 답변 전달
+  - `bin/ax-feynman-server.py`: Flask 서버 (Feynman + Quiz 공용)
+- **setup**: `pip install flask` 자동 설치 추가
+
+---
+
 ## [1.18.0] — 2026-04-12
 
 ### Added

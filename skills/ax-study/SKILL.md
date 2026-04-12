@@ -462,6 +462,60 @@ Play with: mpv {file_path}  (or your preferred player)
 
 N 미지정 시 기본 5문제. `quiz 10`처럼 숫자 지정 가능.
 
+### Step 0: 웹 서버 기동
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+AX_PID=$$
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+# Claude: 사용자가 'quiz 10'처럼 N을 지정했으면 N=10, 미지정시 기본 5
+AX_TOTAL="${N:-5}"
+
+rm -f "$AX_PIPE" && mkfifo "$AX_PIPE"
+
+python3 -c "
+import json, sys
+data = {'mode': 'quiz', 'concept': '', 'round': 0,
+        'total': int(sys.argv[1]), 'text': '',
+        'status': 'starting', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$AX_TOTAL" > "$AX_Q_FILE"
+
+python3 "$PLUGIN_ROOT/bin/ax-feynman-server.py" \
+  --mode quiz \
+  --total "$AX_TOTAL" \
+  --port 0 \
+  --q-file "$AX_Q_FILE" \
+  --pipe "$AX_PIPE" \
+  --port-file "$AX_PORT_FILE" &
+AX_SERVER_PID=$!
+
+sleep 0.5
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+
+# 서버 기동 실패 감지
+if ! kill -0 "$AX_SERVER_PID" 2>/dev/null && [ ! -f "$AX_PORT_FILE" ]; then
+  rm -f "$AX_PIPE" "$AX_Q_FILE"
+  echo "웹 서버 실행 실패. pip install flask 후 재시도하세요."
+  # Claude는 이 지점에서 Quiz Mode를 중단한다
+fi
+
+xdg-open "http://localhost:$AX_PORT" 2>/dev/null || \
+  open "http://localhost:$AX_PORT" 2>/dev/null || true
+echo "🌐 Quiz UI: http://localhost:$AX_PORT"
+```
+
 ### Step 1: 컨텍스트 로드
 
 ```bash
@@ -516,33 +570,48 @@ Focus on concepts that require deep understanding, not simple facts."
 
 ### Step 3: 퀴즈 세션 진행
 
-문제를 한 번에 하나씩 제시. 사용자 답변 후 다음 문제로 이동.
+각 문제마다 다음 패턴을 따른다:
 
-**출력 형식 (문제별):**
+1. 문제를 q-file에 기록 (AX_PID는 Step 0에서 기록한 PID값으로 재입력):
+```bash
+# Claude: AX_PID를 Step 0의 PID값으로, AX_QNUM을 현재 문제 번호로 교체
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL="${N:-5}"
+AX_QNUM=<현재 문제 번호>  # 1부터 시작
+AX_QTEXT="<질문 텍스트>"  # Claude: 실제 질문으로 교체
 
-```
-**Q{번호}/{총}: {질문}**
-
-> (답변을 입력하세요)
-```
-
-**사용자 답변 후 평가:**
-
-```
-✅ 정답 — {한 줄 피드백}
-```
-또는
-```
-⚠️ 부분 정답 — 빠진 점: {설명}
-   정답: {핵심 답변}
-```
-또는
-```
-❌ 틀림 — 정답: {핵심 답변}
-   핵심 포인트: {1-2줄 설명}
+python3 -c "
+import json, sys
+data = {'mode': 'quiz', 'concept': '', 'round': int(sys.argv[1]),
+        'total': int(sys.argv[2]), 'text': sys.argv[3],
+        'status': 'active', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$AX_QNUM" "$AX_TOTAL" "$AX_QTEXT" > "$AX_Q_FILE"
 ```
 
-세션 중 `그만` / `skip` / `stop` 입력 시 즉시 종료 후 Step 4로.
+2. 터미널 출력:
+```
+**Q{AX_QNUM}/{AX_TOTAL}: {질문}** (브라우저에서 답변)
+```
+
+3. pipe에서 답변 대기 (브라우저 제출 시 자동 수신):
+```bash
+# Claude: AX_PID를 Step 0의 PID값으로 재입력
+AX_PID=<Step 0의 PID값>
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+
+AX_LINE=$(cat "$AX_PIPE")
+AX_ACTION="${AX_LINE%%:*}"   # submit | giveup
+AX_ANSWER="${AX_LINE#*:}"
+```
+
+4. 액션 분기:
+- `AX_ACTION=giveup` → (1) 미응답 문제를 weak으로 처리하여 Step 4 study-notes 업데이트 실행, (2) Step 4 끝의 shutdown 블록으로 서버 종료 및 파일 정리 수행
+- `AX_ACTION=submit` → Claude가 AX_ANSWER를 채점 후 다음 문제로
 
 ### Step 4: study-notes.md 업데이트
 
@@ -587,6 +656,31 @@ rm -f "$MASTERY_FILE"
 # fi
 ```
 
+q-file status를 complete로 업데이트하고 서버를 종료한다:
+```bash
+# Claude: AX_PID를 Step 0의 PID값으로, SCORE와 WEAK_LIST를 실제값으로 교체
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL="${N:-5}"
+SCORE=<정답 수>      # Claude: 실제 정답 개수로 교체
+WEAK_LIST="<약점1,약점2>"  # Claude: 쉼표 구분 약점 개념 목록으로 교체
+
+python3 -c "
+import json, sys
+weak = [w.strip() for w in sys.argv[4].split(',') if w.strip()]
+data = {'mode': 'quiz', 'concept': '', 'round': int(sys.argv[1]),
+        'total': int(sys.argv[2]), 'text': '완료',
+        'status': 'complete', 'result': {'score': int(sys.argv[3]), 'weak': weak}}
+print(json.dumps(data, ensure_ascii=False))
+" "$AX_TOTAL" "$AX_TOTAL" "$SCORE" "$WEAK_LIST" > "$AX_Q_FILE"
+sleep 1
+curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
+rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"
+```
+
 ### Output format
 
 ```
@@ -610,6 +704,67 @@ study-notes.md mastery 업데이트 완료.
 개념명이 없으면 먼저 묻는다: "어떤 개념이 어려우신가요?"
 
 최대 5라운드. 갭이 없으면 조기 완료.
+
+### Step 0: 웹 서버 기동
+
+개념명이 없으면 먼저 묻는다: "어떤 개념이 어려우신가요?" (이후 CONCEPT에 대입)
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
+AX_PID=$$
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_TOTAL=5
+
+rm -f "$AX_PIPE" && mkfifo "$AX_PIPE"
+
+# 초기 q-file (placeholder; Step 2에서 실제 Q1으로 덮어씀)
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': 0,
+        'total': int(sys.argv[2]), 'text': '',
+        'status': 'starting', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "$AX_TOTAL" > "$AX_Q_FILE"
+
+python3 "$PLUGIN_ROOT/bin/ax-feynman-server.py" \
+  --mode feynman \
+  --concept "$CONCEPT" \
+  --total "$AX_TOTAL" \
+  --port 0 \
+  --q-file "$AX_Q_FILE" \
+  --pipe "$AX_PIPE" \
+  --port-file "$AX_PORT_FILE" &
+AX_SERVER_PID=$!
+
+sleep 0.5
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+
+# 서버 기동 실패 감지
+if ! kill -0 "$AX_SERVER_PID" 2>/dev/null && [ ! -f "$AX_PORT_FILE" ]; then
+  rm -f "$AX_PIPE" "$AX_Q_FILE"
+  echo "웹 서버 실행 실패. pip install flask 후 재시도하세요."
+  # return (Claude는 이 지점에서 Feynman Mode를 중단한다)
+fi
+
+xdg-open "http://localhost:$AX_PORT" 2>/dev/null || \
+  open "http://localhost:$AX_PORT" 2>/dev/null || true
+echo "🌐 Feynman UI: http://localhost:$AX_PORT"
+```
+
+CONCEPT 변수는 사용자가 입력한 개념명으로, Step 1 이전에 이미 결정되어 있어야 한다.
+서버 기동 실패(python3 없거나 flask 미설치) 시: "웹 서버 실행 실패. pip install flask 후 재시도하세요." 출력 후 종료.
 
 ### Step 1: 컨텍스트 로드 및 개념명 확인
 
@@ -636,13 +791,52 @@ active-document 없으면: "No active study. Run `/ax-study <pdf-path-or-url>` t
 
 ### Step 2: 라운드 1 — 설명 요청
 
-다음 메시지 출력 후 사용자 답변 대기:
+Q1 텍스트를 q-file에 기록하고 브라우저에 표시한다:
 
+```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
+
+Q1_TEXT="${CONCEPT}을 초등학생에게 설명한다고 가정하고 설명해보세요."
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': 1,
+        'total': int(sys.argv[2]), 'text': sys.argv[3],
+        'status': 'active', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "$AX_TOTAL" "$Q1_TEXT" > "$AX_Q_FILE"
+```
+
+터미널에도 출력:
 ```
 === AX Study: Feynman — {개념명} ===
 
-'{개념명}'을 초등학생에게 설명한다고 가정하고 설명해보세요. [1/5]
+브라우저(http://localhost:{AX_PORT})에서 답변을 입력하고 제출하세요. [1/5]
 ```
+
+pipe에서 사용자 답변 대기 (브라우저 제출 시 자동 수신):
+```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_LINE=$(cat "$AX_PIPE")
+AX_ACTION="${AX_LINE%%:*}"   # submit | hint | giveup
+AX_ANSWER="${AX_LINE#*:}"
+```
+
+- `AX_ACTION=submit` → AX_ANSWER를 사용자 설명으로 사용, Step 3으로
+- `AX_ACTION=hint` → Step 3 갭 탐지 없이 Claude가 Q1 핵심 답변 출력 → 다음 라운드 진행
+- `AX_ACTION=giveup` → Step 5-B로
 
 ### Step 3: 갭 탐지 (하이브리드)
 
@@ -672,11 +866,44 @@ notebook_query:
 [{현재라운드}/{최대라운드}] {갭 기반 소크라테스 질문}
 ```
 
-사용자 답변 대기 → 다시 Step 3으로.
+다음 질문을 q-file에 기록:
+```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_CURRENT_ROUND=<현재 라운드 번호>  # Claude: 현재 진행 중인 라운드 번호 (2~5)
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
+QN_TEXT="{갭 기반 소크라테스 질문 텍스트}"
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': int(sys.argv[2]),
+        'total': int(sys.argv[3]), 'text': sys.argv[4],
+        'status': 'active', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "$AX_CURRENT_ROUND" "$AX_TOTAL" "$QN_TEXT" > "$AX_Q_FILE"
+```
 
-**사용자가 `포기` / `skip` / `그만` 입력:**
+pipe에서 답변 대기:
+```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_LINE=$(cat "$AX_PIPE")
+AX_ACTION="${AX_LINE%%:*}"
+AX_ANSWER="${AX_LINE#*:}"
+```
 
-→ Step 5-B (중단 처리)
+- `AX_ACTION=submit` → 답변으로 다시 Step 3
+- `AX_ACTION=hint` → 현재 갭 답변 출력 후 다음 라운드
+- `AX_ACTION=giveup` → Step 5-B
 
 ### Step 5-A: 완료 처리 및 study-notes.md 업데이트
 
@@ -711,6 +938,29 @@ DATE=$(date +%Y%m%d)
 # ax_get_section으로 concept-notes를 읽어 해당 entry를 수정 후 ax_replace_section으로 저장.
 ```
 
+q-file status를 complete로 업데이트하고 서버를 종료한다:
+```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_CURRENT_ROUND=<완료된 라운드 번호>  # Claude: 마지막으로 완료된 라운드 번호
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
+python3 -c "
+import json, sys
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': int(sys.argv[2]),
+        'total': int(sys.argv[3]), 'text': '완료',
+        'status': 'complete', 'result': {'score': None, 'weak': []}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "${AX_CURRENT_ROUND:-5}" "$AX_TOTAL" > "$AX_Q_FILE"
+sleep 1
+curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
+rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"
+```
+
 ### Step 5-B: 중단 처리 및 study-notes.md 업데이트
 
 ```bash
@@ -737,6 +987,32 @@ STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
 # printf '- %s: weak\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
 # ax_replace_section "$STUDY_NOTES" "mastery" "$MASTERY_FILE"
 # rm -f "$MASTERY_FILE"
+```
+
+q-file status를 aborted로 업데이트하고 서버를 종료한다:
+```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_CURRENT_ROUND=<완료된 라운드 번호>  # Claude: 마지막으로 완료된 라운드 번호
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
+# Claude: WEAK_LIST에 실제 약점 개념 목록 (쉼표 구분)을 넣는다
+WEAK_LIST="약점1,약점2"
+python3 -c "
+import json, sys
+weak = [w.strip() for w in sys.argv[4].split(',') if w.strip()]
+data = {'mode': 'feynman', 'concept': sys.argv[1], 'round': int(sys.argv[2]),
+        'total': int(sys.argv[3]), 'text': '중단',
+        'status': 'aborted', 'result': {'score': None, 'weak': weak}}
+print(json.dumps(data, ensure_ascii=False))
+" "$CONCEPT" "${AX_CURRENT_ROUND:-1}" "$AX_TOTAL" "$WEAK_LIST" > "$AX_Q_FILE"
+sleep 1
+curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
+rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"
 ```
 
 ### Output format — 완료
