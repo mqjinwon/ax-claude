@@ -697,11 +697,12 @@ STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
 DATE=$(date +%Y%m%d)
 
 # mastery 업데이트: feynman-passed (실제 개념명으로 <CONCEPT_NAME> 교체)
+# Claude: <CONCEPT_NAME>을 실제 개념명(CONCEPT 변수값)으로 교체하여 실행
 MASTERY_FILE=$(mktemp)
-ax_get_section "$STUDY_NOTES" "mastery" \
-  | grep -v "^- <CONCEPT_NAME>:" \
-  | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
-printf '- %s: feynman-passed\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+# ax_get_section "$STUDY_NOTES" "mastery" \
+#   | grep -v "^- <CONCEPT_NAME>:" \
+#   | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
+# printf '- %s: feynman-passed\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
 ax_replace_section "$STUDY_NOTES" "mastery" "$MASTERY_FILE"
 rm -f "$MASTERY_FILE"
 
@@ -728,11 +729,12 @@ PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
 
 # mastery 업데이트: weak (실제 개념명으로 <CONCEPT_NAME> 교체)
+# Claude: <CONCEPT_NAME>을 실제 개념명(CONCEPT 변수값)으로 교체하여 실행
 MASTERY_FILE=$(mktemp)
-ax_get_section "$STUDY_NOTES" "mastery" \
-  | grep -v "^- <CONCEPT_NAME>:" \
-  | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
-printf '- %s: weak\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+# ax_get_section "$STUDY_NOTES" "mastery" \
+#   | grep -v "^- <CONCEPT_NAME>:" \
+#   | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
+# printf '- %s: weak\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
 ax_replace_section "$STUDY_NOTES" "mastery" "$MASTERY_FILE"
 rm -f "$MASTERY_FILE"
 ```
