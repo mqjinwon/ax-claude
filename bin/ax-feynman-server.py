@@ -365,7 +365,7 @@ def main():
 
     # Start server on dynamic port
     from werkzeug.serving import make_server
-    server = make_server("127.0.0.1", _args.port, app, threaded=True)
+    server = make_server("0.0.0.0", _args.port, app, threaded=True)
     port = server.server_address[1]
     Path(_args.port_file).write_text(str(port))
 
