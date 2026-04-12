@@ -613,7 +613,10 @@ study-notes.md mastery 업데이트 완료.
 
 ### Step 0: 웹 서버 기동
 
+개념명이 없으면 먼저 묻는다: "어떤 개념이 어려우신가요?" (이후 CONCEPT에 대입)
+
 ```bash
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 AX_PID=$$
 AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
 AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
@@ -638,6 +641,14 @@ AX_SERVER_PID=$!
 
 sleep 0.5
 AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+
+# 서버 기동 실패 감지
+if ! kill -0 "$AX_SERVER_PID" 2>/dev/null && [ ! -f "$AX_PORT_FILE" ]; then
+  rm -f "$AX_PIPE" "$AX_Q_FILE"
+  echo "웹 서버 실행 실패. pip install flask 후 재시도하세요."
+  # return (Claude는 이 지점에서 Feynman Mode를 중단한다)
+fi
+
 xdg-open "http://localhost:$AX_PORT" 2>/dev/null || \
   open "http://localhost:$AX_PORT" 2>/dev/null || true
 echo "🌐 Feynman UI: http://localhost:$AX_PORT"
@@ -674,6 +685,15 @@ active-document 없으면: "No active study. Run `/ax-study <pdf-path-or-url>` t
 Q1 텍스트를 q-file에 기록하고 브라우저에 표시한다:
 
 ```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
+
 Q1_TEXT="${CONCEPT}을 초등학생에게 설명한다고 가정하고 설명해보세요."
 printf '{"mode":"feynman","concept":"%s","round":1,"total":%d,"text":"%s","status":"active","result":{"score":null,"weak":[]}}' \
   "$CONCEPT" "$AX_TOTAL" "$Q1_TEXT" > "$AX_Q_FILE"
@@ -688,6 +708,13 @@ printf '{"mode":"feynman","concept":"%s","round":1,"total":%d,"text":"%s","statu
 
 pipe에서 사용자 답변 대기 (브라우저 제출 시 자동 수신):
 ```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
 AX_LINE=$(cat "$AX_PIPE")
 AX_ACTION="${AX_LINE%%:*}"   # submit | hint | giveup
 AX_ANSWER="${AX_LINE#*:}"
@@ -727,6 +754,15 @@ notebook_query:
 
 다음 질문을 q-file에 기록:
 ```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_CURRENT_ROUND=<현재 라운드 번호>  # Claude: 현재 진행 중인 라운드 번호 (2~5)
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 QN_TEXT="{갭 기반 소크라테스 질문 텍스트}"
 printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"%s","status":"active","result":{"score":null,"weak":[]}}' \
   "$CONCEPT" "$AX_CURRENT_ROUND" "$AX_TOTAL" "$QN_TEXT" > "$AX_Q_FILE"
@@ -734,6 +770,13 @@ printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"%s","stat
 
 pipe에서 답변 대기:
 ```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
 AX_LINE=$(cat "$AX_PIPE")
 AX_ACTION="${AX_LINE%%:*}"
 AX_ANSWER="${AX_LINE#*:}"
@@ -778,6 +821,15 @@ DATE=$(date +%Y%m%d)
 
 q-file status를 complete로 업데이트하고 서버를 종료한다:
 ```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_CURRENT_ROUND=<완료된 라운드 번호>  # Claude: 마지막으로 완료된 라운드 번호
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"완료","status":"complete","result":{"score":null,"weak":[]}}' \
   "$CONCEPT" "${AX_CURRENT_ROUND:-5}" "$AX_TOTAL" > "$AX_Q_FILE"
 sleep 1
@@ -815,6 +867,15 @@ STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
 
 q-file status를 aborted로 업데이트하고 서버를 종료한다:
 ```bash
+# Claude: Step 0에서 사용한 AX_PID(=$$값)를 아래에 재입력
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL=5
+AX_CURRENT_ROUND=<완료된 라운드 번호>  # Claude: 마지막으로 완료된 라운드 번호
+CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 # Claude: WEAK_LIST에 실제 약점 개념 목록 (쉼표 구분)을 넣는다
 WEAK_LIST="약점1,약점2"
 printf '{"mode":"feynman","concept":"%s","round":%d,"total":%d,"text":"중단","status":"aborted","result":{"score":null,"weak":["%s"]}}' \
