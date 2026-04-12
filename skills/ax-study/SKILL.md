@@ -456,6 +456,153 @@ Play with: mpv {file_path}  (or your preferred player)
 
 ---
 
+## Quiz Mode
+
+**Trigger**: `/ax-study quiz [N]` 또는 자연어 퀴즈 의도 (Mode Detection 참고)
+
+N 미지정 시 기본 5문제. `quiz 10`처럼 숫자 지정 가능.
+
+### Step 1: 컨텍스트 로드
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
+
+echo "=== ACTIVE DOCUMENT ==="
+ax_get_section "$STUDY_NOTES" "active-document"
+echo "=== CONCEPT NOTES ==="
+ax_get_section "$STUDY_NOTES" "concept-notes"
+```
+
+active-document가 비어 있으면: "No active study. Run `/ax-study <pdf-path-or-url>` to start." 출력 후 Hint Footer(초기) 표시하고 종료.
+
+> **기존 프로젝트 호환:** mastery/next-review 섹션이 study-notes.md에 없으면 `ax_replace_section`이 새 섹션으로 삽입한다 (ax-utils.sh 표준 동작).
+
+### Step 2: 문제 생성 (하이브리드)
+
+**N** = 사용자가 지정한 숫자 또는 기본값 5.
+
+**NLM 경로 (연결 있을 때):**
+
+notebook_id를 active-document에서 읽어 `notebook_query` MCP 호출:
+
+```
+query: "Generate {N} Q&A pairs covering the key concepts of this document.
+Format each pair exactly as:
+Q: [question in Korean or English matching the document language]
+A: [concise answer, 1-3 sentences]
+
+Focus on concepts that require deep understanding, not simple facts."
+```
+
+**Claude fallback (NLM 없거나 실패 시):**
+
+`concept-notes` 섹션의 각 `### {Concept Name}` 항목에서 Q&A 생성:
+- Q: Definition/Key insight 기반 질문
+- A: Definition + Key insight 결합 답변
+
+최대 N개 생성. concept-notes 항목이 N보다 적으면 가능한 만큼만.
+
+### Step 3: 퀴즈 세션 진행
+
+문제를 한 번에 하나씩 제시. 사용자 답변 후 다음 문제로 이동.
+
+**출력 형식 (문제별):**
+
+```
+**Q{번호}/{총}: {질문}**
+
+> (답변을 입력하세요)
+```
+
+**사용자 답변 후 평가:**
+
+```
+✅ 정답 — {한 줄 피드백}
+```
+또는
+```
+⚠️ 부분 정답 — 빠진 점: {설명}
+   정답: {핵심 답변}
+```
+또는
+```
+❌ 틀림 — 정답: {핵심 답변}
+   핵심 포인트: {1-2줄 설명}
+```
+
+세션 중 `그만` / `skip` / `stop` 입력 시 즉시 종료 후 Step 4로.
+
+### Step 4: study-notes.md 업데이트
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
+REVIEW_DATE=$(date -d "+3 days" +%Y-%m-%d 2>/dev/null || date -v+3d +%Y-%m-%d 2>/dev/null || echo "unknown")
+
+# mastery 섹션 업데이트 (기존 항목 유지, 신규/변경만 반영)
+MASTERY_FILE=$(mktemp)
+ax_get_section "$STUDY_NOTES" "mastery" \
+  | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
+
+# quiz 결과에 따라 아래 형식으로 추가/갱신 (실제 개념명으로 교체):
+# ✅ 정답: printf '- %s: mastered\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+# ⚠️ 부분 정답: printf '- %s: learning\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+# ❌ 틀림: printf '- %s: weak\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+
+ax_replace_section "$STUDY_NOTES" "mastery" "$MASTERY_FILE"
+rm -f "$MASTERY_FILE"
+
+# next-review 섹션 업데이트 (weak 개념이 있을 때만)
+# WEAK_CONCEPTS = 틀린 개념들 쉼표 구분 목록
+# if [ -n "$WEAK_CONCEPTS" ]; then
+#   REVIEW_FILE=$(mktemp)
+#   ax_get_section "$STUDY_NOTES" "next-review" \
+#     | grep -v '^_No review scheduled' > "$REVIEW_FILE" || true
+#   printf '- %s: %s\n' "$REVIEW_DATE" "$WEAK_CONCEPTS" >> "$REVIEW_FILE"
+#   ax_replace_section "$STUDY_NOTES" "next-review" "$REVIEW_FILE"
+#   rm -f "$REVIEW_FILE"
+# fi
+```
+
+### Output format
+
+```
+=== AX Study: Quiz 완료 ===
+
+결과: {정답}/{총} 정답
+정답: ✅ {개념명} ...
+약점: ❌ {개념명} ...
+
+study-notes.md mastery 업데이트 완료.
+```
+
+[Hint Footer: Quiz 완료 후 형식 사용 — 약점 있으면 "Quiz 완료 후", 없으면 "Quiz 전체 정답" 형식]
+
+---
+
 ## Hint Footer
 
 모든 모드의 응답 마지막에 현재 컨텍스트에 맞는 힌트를 출력한다.
