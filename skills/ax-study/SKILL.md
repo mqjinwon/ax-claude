@@ -142,6 +142,9 @@ Commands:
   /notebooklm-study         — quiz, report 등 NLM 직접 활용
 ```
 
+[active-document 있을 때 → Hint Footer: "active-document 있을 때" 형식 사용]
+[active-document 없을 때 → Hint Footer: "active-document 없을 때" 형식 사용]
+
 ---
 
 ## Init Mode
@@ -230,6 +233,8 @@ Background topics identified:
 study-notes.md initialized.
 Run /ax-study to resume anytime.
 ```
+
+[Hint Footer: "active-document 있을 때" 형식 사용]
 
 ---
 
@@ -333,6 +338,8 @@ Also mark related study-queue items as `[x]` if applicable.
 Saved: concept-notes entry:{entry-id}
 NLM note synced.
 ```
+
+[Hint Footer: "active-document 있을 때" 형식 사용]
 
 ---
 
@@ -445,6 +452,74 @@ Studio status: completed
 
 Audio ready: {file_path}
 Play with: mpv {file_path}  (or your preferred player)
+```
+
+---
+
+## Hint Footer
+
+모든 모드의 응답 마지막에 현재 컨텍스트에 맞는 힌트를 출력한다.
+
+### active-document 있을 때 (기본)
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+다음 액션:
+  /ax-study quiz               ← 배운 내용 테스트
+  /ax-study feynman <개념>     ← 이해도 검증
+  /ax-study concept <개념>     ← 개념 심화
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### active-document 없을 때 (초기)
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+시작하려면:
+  /ax-study <pdf 경로>         ← 로컬 PDF
+  /ax-study <url>              ← 웹 문서 / 논문
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Quiz 완료 후
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+결과: {정답}/{총} 정답 | 약점: [{약점 개념 목록}]
+다음:
+  /ax-study feynman <약점 개념>  ← 약점 집중
+  /ax-study concept <약점 개념>  ← 개념 재학습
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+약점 없으면 (전체 정답):
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🎉 전체 정답! 다음 단계:
+  /ax-study explore <주제>     ← 후속 탐색
+  /ax-study audio              ← 오디오 요약
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+### Feynman 완료 후
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✅ Feynman 통과: {개념명} | 숙달 상태: feynman-passed
+다음:
+  /ax-study quiz               ← 전체 퀴즈로 확인
+  /ax-study explore <주제>     ← 후속 탐색
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+Feynman 중단 시:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+약점 기록: {개념명} → weak
+다음:
+  /ax-study concept {개념명}   ← 개념 재학습
+  /ax-study feynman {개념명}   ← 다시 도전
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ---
