@@ -1,13 +1,14 @@
 ---
 name: ax-study
-version: 1.15.0
+version: 1.18.0
 description: |
-  Document study skill with NotebookLM integration and ax memory.
-  /ax-study <pdf-or-url>    → init: create NLM notebook, build study roadmap
-  /ax-study                 → resume: show progress, suggest next step
-  /ax-study concept <name>  → deep-dive a concept with NLM + context7
-  /ax-study explore <topic> → recommend follow-up research skills
-  /ax-study audio           → generate audio summary via NLM studio
+  /ax-study <pdf|url>          문서/논문 학습 시작
+  /ax-study quiz [N]           배운 내용 퀴즈 (Active Recall, 기본 5문제)
+  /ax-study feynman <개념>     이해도 검증 (멀티턴 소크라테스 대화)
+  /ax-study concept <개념>     개념 심화 학습
+  /ax-study explore <주제>     후속 자료 탐색
+  /ax-study audio              오디오 요약 생성
+  또는 자연어: "이해 안가" → feynman 자동, "퀴즈 내줘" → quiz 자동
 allowed-tools:
   - Bash
   - Read
@@ -62,15 +63,21 @@ After running:
 
 ## Mode Detection
 
-Determine mode from the user's input AFTER the `/ax-study` command:
+Determine mode from the user's input AFTER the `/ax-study` command.
+Apply rules in priority order — first match wins.
 
-| Input pattern | Mode |
-|---|---|
-| ends with `.pdf`, starts with `http`, or is a file path | Init Mode |
-| `concept <name>` | Concept Mode |
-| `explore <topic>` | Explore Mode |
-| `audio` | Audio Mode |
-| (nothing) | Resume Mode |
+| 우선순위 | 입력 패턴 | 모드 |
+|---|---|---|
+| 1 | URL(`https?://`) 또는 파일 경로(`.pdf`, `.md`, `~/`, `/home/`) | Init Mode |
+| 2 | `quiz` 또는 `quiz <숫자>` | Quiz Mode |
+| 3 | `feynman <개념명>` | Feynman Mode |
+| 4 | `concept <name>` | Concept Mode |
+| 5 | `explore <topic>` | Explore Mode |
+| 6 | `audio` | Audio Mode |
+| 7 | 자연어 퀴즈 의도: "테스트", "퀴즈", "문제 내줘", "맞혀볼게", "확인해줘", "시험", "test me", "quiz me", "check my understanding" | Quiz Mode |
+| 8 | 자연어 Feynman 의도: "이해가 안 가", "모르겠어", "헷갈려", "다시 설명", "쉽게", "어렵다", "confused", "don't understand", "explain to me" (개념명 있으면 바로 feynman, 없으면 개념명 질문 후 feynman) | Feynman Mode |
+| 9 | 자연어 개념: "<명사> 뭐야", "<명사> 알려줘", "<명사> 설명해줘" → concept <명사> 로 변환 | Concept Mode |
+| 10 | (아무것도 없음) | Resume Mode |
 
 ---
 
