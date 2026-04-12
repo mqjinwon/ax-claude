@@ -465,11 +465,22 @@ N 미지정 시 기본 5문제. `quiz 10`처럼 숫자 지정 가능.
 ### Step 0: 웹 서버 기동
 
 ```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 AX_PID=$$
 AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
 AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
 AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
-AX_TOTAL="${N:-5}"  # Claude: 사용자가 지정한 N 또는 기본값 5
+# Claude: 사용자가 'quiz 10'처럼 N을 지정했으면 N=10, 미지정시 기본 5
+AX_TOTAL="${N:-5}"
 
 rm -f "$AX_PIPE" && mkfifo "$AX_PIPE"
 
@@ -589,7 +600,7 @@ AX_ANSWER="${AX_LINE#*:}"
 ```
 
 4. 액션 분기:
-- `AX_ACTION=giveup` → 즉시 Step 4로 (세션 종료, 미응답 개념은 weak 처리)
+- `AX_ACTION=giveup` → (1) 미응답 문제를 weak으로 처리하여 Step 4 study-notes 업데이트 실행, (2) Step 4 끝의 shutdown 블록으로 서버 종료 및 파일 정리 수행
 - `AX_ACTION=submit` → Claude가 AX_ANSWER를 채점 후 다음 문제로
 
 ### Step 4: study-notes.md 업데이트
@@ -683,6 +694,16 @@ study-notes.md mastery 업데이트 완료.
 개념명이 없으면 먼저 묻는다: "어떤 개념이 어려우신가요?" (이후 CONCEPT에 대입)
 
 ```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
 CONCEPT="<사용자가 입력한 개념명>"  # Claude: 실제 개념명으로 교체
 AX_PID=$$
 AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
