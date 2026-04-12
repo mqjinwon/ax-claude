@@ -21,3 +21,13 @@ _No concepts recorded yet._
 <!-- BEGIN:open-questions -->
 _No open questions yet._
 <!-- END:open-questions -->
+
+## Mastery
+<!-- BEGIN:mastery -->
+_No mastery data yet._
+<!-- END:mastery -->
+
+## Next Review
+<!-- BEGIN:next-review -->
+_No review scheduled._
+<!-- END:next-review -->
