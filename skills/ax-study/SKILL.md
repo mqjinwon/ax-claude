@@ -462,6 +462,44 @@ Play with: mpv {file_path}  (or your preferred player)
 
 N 미지정 시 기본 5문제. `quiz 10`처럼 숫자 지정 가능.
 
+### Step 0: 웹 서버 기동
+
+```bash
+AX_PID=$$
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_TOTAL="${N:-5}"  # Claude: 사용자가 지정한 N 또는 기본값 5
+
+rm -f "$AX_PIPE" && mkfifo "$AX_PIPE"
+
+printf '{"mode":"quiz","concept":"","round":0,"total":%d,"text":"","status":"starting","result":{"score":null,"weak":[]}}' \
+  "$AX_TOTAL" > "$AX_Q_FILE"
+
+python3 "$PLUGIN_ROOT/bin/ax-feynman-server.py" \
+  --mode quiz \
+  --total "$AX_TOTAL" \
+  --port 0 \
+  --q-file "$AX_Q_FILE" \
+  --pipe "$AX_PIPE" \
+  --port-file "$AX_PORT_FILE" &
+AX_SERVER_PID=$!
+
+sleep 0.5
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+
+# 서버 기동 실패 감지
+if ! kill -0 "$AX_SERVER_PID" 2>/dev/null && [ ! -f "$AX_PORT_FILE" ]; then
+  rm -f "$AX_PIPE" "$AX_Q_FILE"
+  echo "웹 서버 실행 실패. pip install flask 후 재시도하세요."
+  # Claude는 이 지점에서 Quiz Mode를 중단한다
+fi
+
+xdg-open "http://localhost:$AX_PORT" 2>/dev/null || \
+  open "http://localhost:$AX_PORT" 2>/dev/null || true
+echo "🌐 Quiz UI: http://localhost:$AX_PORT"
+```
+
 ### Step 1: 컨텍스트 로드
 
 ```bash
@@ -516,33 +554,43 @@ Focus on concepts that require deep understanding, not simple facts."
 
 ### Step 3: 퀴즈 세션 진행
 
-문제를 한 번에 하나씩 제시. 사용자 답변 후 다음 문제로 이동.
+각 문제마다 다음 패턴을 따른다:
 
-**출력 형식 (문제별):**
+1. 문제를 q-file에 기록 (AX_PID는 Step 0에서 기록한 PID값으로 재입력):
+```bash
+# Claude: AX_PID를 Step 0의 PID값으로, AX_QNUM을 현재 문제 번호로 교체
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL="${N:-5}"
+AX_QNUM=<현재 문제 번호>  # 1부터 시작
+AX_QTEXT="<질문 텍스트>"  # Claude: 실제 질문으로 교체
 
-```
-**Q{번호}/{총}: {질문}**
-
-> (답변을 입력하세요)
-```
-
-**사용자 답변 후 평가:**
-
-```
-✅ 정답 — {한 줄 피드백}
-```
-또는
-```
-⚠️ 부분 정답 — 빠진 점: {설명}
-   정답: {핵심 답변}
-```
-또는
-```
-❌ 틀림 — 정답: {핵심 답변}
-   핵심 포인트: {1-2줄 설명}
+printf '{"mode":"quiz","concept":"","round":%d,"total":%d,"text":"%s","status":"active","result":{"score":null,"weak":[]}}' \
+  "$AX_QNUM" "$AX_TOTAL" "$AX_QTEXT" > "$AX_Q_FILE"
 ```
 
-세션 중 `그만` / `skip` / `stop` 입력 시 즉시 종료 후 Step 4로.
+2. 터미널 출력:
+```
+**Q{AX_QNUM}/{AX_TOTAL}: {질문}** (브라우저에서 답변)
+```
+
+3. pipe에서 답변 대기 (브라우저 제출 시 자동 수신):
+```bash
+# Claude: AX_PID를 Step 0의 PID값으로 재입력
+AX_PID=<Step 0의 PID값>
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+
+AX_LINE=$(cat "$AX_PIPE")
+AX_ACTION="${AX_LINE%%:*}"   # submit | giveup
+AX_ANSWER="${AX_LINE#*:}"
+```
+
+4. 액션 분기:
+- `AX_ACTION=giveup` → 즉시 Step 4로 (세션 종료, 미응답 개념은 weak 처리)
+- `AX_ACTION=submit` → Claude가 AX_ANSWER를 채점 후 다음 문제로
 
 ### Step 4: study-notes.md 업데이트
 
@@ -585,6 +633,25 @@ rm -f "$MASTERY_FILE"
 #   ax_replace_section "$STUDY_NOTES" "next-review" "$REVIEW_FILE"
 #   rm -f "$REVIEW_FILE"
 # fi
+```
+
+q-file status를 complete로 업데이트하고 서버를 종료한다:
+```bash
+# Claude: AX_PID를 Step 0의 PID값으로, SCORE와 WEAK_LIST를 실제값으로 교체
+AX_PID=<Step 0의 PID값>
+AX_Q_FILE="/tmp/ax-feynman-${AX_PID}-q.json"
+AX_PIPE="/tmp/ax-feynman-${AX_PID}.pipe"
+AX_PORT_FILE="/tmp/ax-feynman-${AX_PID}-port.txt"
+AX_PORT=$(cat "$AX_PORT_FILE" 2>/dev/null || echo "5000")
+AX_TOTAL="${N:-5}"
+SCORE=<정답 수>      # Claude: 실제 정답 개수로 교체
+WEAK_LIST="<약점1,약점2>"  # Claude: 쉼표 구분 약점 개념 목록으로 교체
+
+printf '{"mode":"quiz","concept":"","round":%d,"total":%d,"text":"완료","status":"complete","result":{"score":%d,"weak":["%s"]}}' \
+  "$AX_TOTAL" "$AX_TOTAL" "$SCORE" "$WEAK_LIST" > "$AX_Q_FILE"
+sleep 1
+curl -s "http://localhost:$AX_PORT/shutdown" >/dev/null 2>&1 || true
+rm -f "$AX_Q_FILE" "$AX_PIPE" "$AX_PORT_FILE"
 ```
 
 ### Output format
