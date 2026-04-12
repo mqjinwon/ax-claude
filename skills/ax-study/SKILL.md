@@ -603,6 +603,171 @@ study-notes.md mastery 업데이트 완료.
 
 ---
 
+## Feynman Mode
+
+**Trigger**: `/ax-study feynman <개념명>` 또는 자연어 Feynman 의도 (Mode Detection 참고)
+
+개념명이 없으면 먼저 묻는다: "어떤 개념이 어려우신가요?"
+
+최대 5라운드. 갭이 없으면 조기 완료.
+
+### Step 1: 컨텍스트 로드 및 개념명 확인
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
+
+ax_get_section "$STUDY_NOTES" "active-document" | grep "Notebook ID"
+ax_get_section "$STUDY_NOTES" "concept-notes" | head -30
+```
+
+active-document 없으면: "No active study. Run `/ax-study <pdf-path-or-url>` to start." 출력 후 Hint Footer(초기) 표시하고 종료.
+
+### Step 2: 라운드 1 — 설명 요청
+
+다음 메시지 출력 후 사용자 답변 대기:
+
+```
+=== AX Study: Feynman — {개념명} ===
+
+'{개념명}'을 초등학생에게 설명한다고 가정하고 설명해보세요. [1/5]
+```
+
+### Step 3: 갭 탐지 (하이브리드)
+
+**NLM 경로 (연결 있을 때):**
+
+```
+notebook_query:
+  "A student explained '{concept}' as follows: '{user_explanation}'
+   Based on this document, what key points are missing or incorrect?
+   List each gap as a single question I can ask the student to guide them.
+   If the explanation is complete and correct, respond with exactly: COMPLETE"
+```
+
+**Claude fallback (NLM 없거나 실패 시):**
+
+`concept-notes`의 해당 개념 항목(`Definition`, `Key insight`, `Related` 필드)을 기준으로 사용자 설명과 비교하여 갭을 판단한다. 갭이 없으면 `COMPLETE`로 처리.
+
+### Step 4: 라운드 2~5 — 소크라테스 질문 또는 완료
+
+**갭 없음 (COMPLETE 또는 Claude 판단):**
+
+→ Step 5-A (완료 처리)
+
+**갭 있음:**
+
+```
+[{현재라운드}/{최대라운드}] {갭 기반 소크라테스 질문}
+```
+
+사용자 답변 대기 → 다시 Step 3으로.
+
+**사용자가 `포기` / `skip` / `그만` 입력:**
+
+→ Step 5-B (중단 처리)
+
+### Step 5-A: 완료 처리 및 study-notes.md 업데이트
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
+DATE=$(date +%Y%m%d)
+
+# mastery 업데이트: feynman-passed (실제 개념명으로 <CONCEPT_NAME> 교체)
+MASTERY_FILE=$(mktemp)
+ax_get_section "$STUDY_NOTES" "mastery" \
+  | grep -v "^- <CONCEPT_NAME>:" \
+  | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
+printf '- %s: feynman-passed\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+ax_replace_section "$STUDY_NOTES" "mastery" "$MASTERY_FILE"
+rm -f "$MASTERY_FILE"
+
+# concept-notes 해당 항목에 Feynman 날짜 기록
+# 해당 개념의 concept-notes 항목을 찾아 "- **Feynman**: {DATE}" 라인을 추가한다.
+# ax_get_section으로 concept-notes를 읽어 해당 entry를 수정 후 ax_replace_section으로 저장.
+```
+
+### Step 5-B: 중단 처리 및 study-notes.md 업데이트
+
+```bash
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-}"
+if [ -z "$PLUGIN_ROOT" ] || [ ! -f "$PLUGIN_ROOT/lib/ax-utils.sh" ]; then
+  for _P in \
+    $(ls -d "$HOME/.claude/plugins/cache/ax-claude/ax-claude/"* 2>/dev/null | sort -V -r | head -1) \
+    "$HOME/.claude/plugins/marketplaces/ax-claude" \
+    "$HOME/.ax"; do
+    [ -f "$_P/lib/ax-utils.sh" ] && PLUGIN_ROOT="$_P" && break
+  done
+fi
+PLUGIN_ROOT="${PLUGIN_ROOT:-$HOME/.ax}"
+source "$PLUGIN_ROOT/lib/ax-utils.sh"
+PROJECT_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+STUDY_NOTES="$PROJECT_ROOT/.ax/memory/study-notes.md"
+
+# mastery 업데이트: weak (실제 개념명으로 <CONCEPT_NAME> 교체)
+MASTERY_FILE=$(mktemp)
+ax_get_section "$STUDY_NOTES" "mastery" \
+  | grep -v "^- <CONCEPT_NAME>:" \
+  | grep -v '^_No mastery data yet' > "$MASTERY_FILE" || true
+printf '- %s: weak\n' "<CONCEPT_NAME>" >> "$MASTERY_FILE"
+ax_replace_section "$STUDY_NOTES" "mastery" "$MASTERY_FILE"
+rm -f "$MASTERY_FILE"
+```
+
+### Output format — 완료
+
+```
+=== AX Study: Feynman — {개념명} ===
+
+✅ Feynman 검증 통과! ({N}라운드 완료)
+
+핵심 인사이트:
+- {핵심 포인트 1}
+- {핵심 포인트 2}
+
+study-notes.md: {개념명} → feynman-passed
+```
+
+[Hint Footer: Feynman 완료 후 형식 사용]
+
+### Output format — 중단
+
+```
+=== AX Study: Feynman — {개념명} (중단) ===
+
+발견된 갭:
+- {미완성 포인트 목록}
+
+study-notes.md: {개념명} → weak
+```
+
+[Hint Footer: Feynman 중단 시 형식 사용]
+
+---
+
 ## Hint Footer
 
 모든 모드의 응답 마지막에 현재 컨텍스트에 맞는 힌트를 출력한다.
