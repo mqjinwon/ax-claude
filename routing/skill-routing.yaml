@@ -13,6 +13,10 @@
 #   orchestrator_trigger: keywords → recommend orchestrator instead
 #   hidden:               skills excluded from /ax recommendations (still callable directly)
 #
+# Plugin status (2026-04-29):
+#   ACTIVE:   oh-my-claudecode (omc), context7, serena, playwright, autoresearch, ax-claude, andrej-karpathy-skills
+#   DISABLED: superpowers (replaced by omc:plan + Claude Design), clangd-lsp, typescript-lsp (both replaced by serena)
+#
 # Orchestration hierarchy (do NOT use as canonical unless noted):
 #   research-pipeline       full research: idea-discovery → experiment-bridge → auto-review-loop
 #   idea-discovery          idea: research-lit → idea-creator → novelty-check → research-review
@@ -30,6 +34,20 @@
 # These are excluded from /ax routing recommendations.
 # Users can still invoke them directly (e.g. /comm-lit-review).
 hidden:
+  # superpowers plugin disabled — all replaced by omc equivalents
+  - superpowers:brainstorming
+  - superpowers:writing-plans
+  - superpowers:executing-plans
+  - superpowers:systematic-debugging
+  - superpowers:test-driven-development
+  - superpowers:subagent-driven-development
+  - superpowers:dispatching-parallel-agents
+  - superpowers:requesting-code-review
+  - superpowers:receiving-code-review
+  - superpowers:verification-before-completion
+  - superpowers:finishing-a-development-branch
+  - superpowers:using-git-worktrees
+  - superpowers:using-superpowers
   # Domain-specific (not general use)
   - comm-lit-review         # communications domain only
   # Fun/unrelated
@@ -39,6 +57,29 @@ hidden:
   - auto-paper-improvement-loop   # called internally by paper-writing orchestrator
   - auto-review-loop-minimax      # specialized variant; use auto-review-loop instead
   - research-review         # called internally by idea-discovery orchestrator
+  # Internal/utility
+  - shared-references       # internal reference management
+  - skills-codex            # internal codex integration
+  - skills-codex-claude-review    # internal review variant
+  - skills-codex-gemini-review    # internal review variant
+  - auto-research           # superceded by research-pipeline
+  - agents                  # internal agent management
+  # OMC internal / user-invocable only
+  - oh-my-claudecode:setup
+  - oh-my-claudecode:omc-setup
+  - oh-my-claudecode:mcp-setup
+  - oh-my-claudecode:hud
+  - oh-my-claudecode:cancel
+  - oh-my-claudecode:ccg
+  - oh-my-claudecode:configure-notifications
+  - oh-my-claudecode:omc-doctor
+  - oh-my-claudecode:project-session-manager
+  - oh-my-claudecode:deep-interview
+  - oh-my-claudecode:external-context
+  - oh-my-claudecode:omc-reference
+  - oh-my-claudecode:skill
+  # ax internal
+  - ax-setup
 
 # ── Categories ───────────────────────────────────────────────────────────────
 
@@ -49,8 +90,8 @@ categories:
   debugging:
     canonical: oh-my-claudecode:trace
     aliases:
+      - oh-my-claudecode:debug
       - oh-my-claudecode:deep-dive
-      - superpowers:systematic-debugging
     trigger:
       - "버그"
       - "에러"
@@ -64,6 +105,10 @@ categories:
       - "traceback"
       - "segfault"
       - "not working"
+      - "디버그"
+      - "원인 찾아"
+      - "스택 트레이스"
+      - "죽어"
     examples:
       - "에러가 나는데 어디서 죽는지 모르겠어"
       - "이 코드가 왜 안 되지?"
@@ -73,9 +118,7 @@ categories:
 
   planning:
     canonical: oh-my-claudecode:plan
-    omc_covered: true          # OMC detects: "ralplan"
-    aliases:
-      - superpowers:writing-plans
+    omc_covered: true          # OMC detects: "ralplan", "plan"
     trigger:
       - "설계"
       - "계획"
@@ -84,17 +127,21 @@ categories:
       - "design"
       - "architecture"
       - "어떤 방향"
-      - "office hours"
+      - "어떻게 짜"
+      - "구조 잡아"
+      - "아키텍처"
+      - "plan"
     examples:
       - "어떤 구조로 만들면 좋을까?"
       - "아키텍처를 어떻게 잡아야 할지 모르겠어"
       - "설계를 도와줘"
 
   code_review:
-    canonical: superpowers:requesting-code-review
+    canonical: oh-my-claudecode:deep-dive
     omc_covered: true          # OMC detects: "code review", "security review"
     aliases:
-      - superpowers:receiving-code-review
+      - review
+      - security-review
     trigger:
       - "리뷰"
       - "코드 확인"
@@ -102,6 +149,21 @@ categories:
       - "review"
       - "코드 검토"
       - "pr 봐줘"
+      - "코드 품질"
+      - "보안 검토"
+      - "security review"
+
+  code_quality:
+    canonical: oh-my-claudecode:ai-slop-cleaner
+    trigger:
+      - "ai 냄새"
+      - "ai 흔적"
+      - "코드 정리"
+      - "slop"
+      - "군더더기"
+      - "불필요한 코드"
+      - "클린업"
+      - "코드 깔끔하게"
 
   execution:
     # For "implement everything autonomously" — parallel task completion
@@ -148,6 +210,65 @@ categories:
       - "merge pr"
       - "배포까지"
 
+  git_release:
+    canonical: oh-my-claudecode:release
+    trigger:
+      - "릴리즈 노트"
+      - "버전 태그"
+      - "release note"
+      - "changelog 만들어"
+      - "version bump"
+      - "태그 달아"
+
+  verification:
+    canonical: oh-my-claudecode:verify
+    aliases:
+      - oh-my-claudecode:ultraqa
+      - oh-my-claudecode:visual-verdict
+    trigger:
+      - "검증해줘"
+      - "테스트 통과하는지"
+      - "제대로 됐는지 확인"
+      - "verify"
+      - "qa"
+      - "qa 해줘"
+      - "동작 확인"
+    examples:
+      - "구현한 게 제대로 됐는지 확인해줘"
+      - "QA 해줘"
+
+  self_improve:
+    canonical: oh-my-claudecode:self-improve
+    aliases:
+      - oh-my-claudecode:learner
+      - oh-my-claudecode:skillify
+    trigger:
+      - "스킬 만들어"
+      - "새 스킬"
+      - "skill 추가"
+      - "학습 루프"
+      - "self improve"
+      - "스킬 개선"
+      - "자기 개선"
+
+  memory_wiki:
+    canonical: oh-my-claudecode:remember
+    aliases:
+      - oh-my-claudecode:wiki
+      - oh-my-claudecode:writer-memory
+    trigger:
+      - "기억해"
+      - "저장해"
+      - "remember"
+      - "위키"
+      - "wiki"
+      - "메모"
+      - "노트 저장"
+      - "나중에도 알아야 해"
+    examples:
+      - "이걸 기억해둬"
+      - "프로젝트 위키에 추가해줘"
+
   # ── Research ─────────────────────────────────────────────────────────────
 
   research_lit:
@@ -155,7 +276,10 @@ categories:
     orchestrator: idea-discovery-robot
     aliases:
       - arxiv
+      - alphaxiv
+      - deepxiv
       - semantic-scholar
+      - exa-search
     trigger:
       - "논문 찾아"
       - "선행연구"
@@ -165,6 +289,10 @@ categories:
       - "state of the art"
       - "관련 논문"
       - "literature"
+      - "관련 연구"
+      - "reference 찾아"
+      - "exa"
+      - "웹 검색"
     orchestrator_trigger:
       - "아이디어 찾아"
       - "연구 방향 잡아"
@@ -177,11 +305,16 @@ categories:
     aliases:
       - novelty-check
       - research-refine
+      - meta-optimize
     trigger:
       - "아이디어 생각해"
       - "novelty 확인"
       - "새로운 방법"
       - "idea 만들어"
+      - "연구 아이디어"
+      - "novelty"
+      - "기여점"
+      - "contribution"
     orchestrator_trigger:
       - "아이디어 찾아"
       - "연구 방향"
@@ -195,12 +328,17 @@ categories:
       - monitor-experiment
       - training-check
       - oh-my-claudecode:sciomc
+      - experiment-queue
+      - experiment-audit
     trigger:
       - "실험 돌려"
       - "학습 시작"
       - "실험해줘"
       - "run experiment"
       - "훈련 시작"
+      - "실험 큐"
+      - "실험 관리"
+      - "실험 체크"
     orchestrator_trigger:
       - "실험 계획부터"
       - "설계하고 돌려"
@@ -211,18 +349,39 @@ categories:
       - "모델 학습을 시작하고 싶어"
       - "훈련을 시작하고 결과를 봐야 해"
 
+  experiment_design:
+    canonical: experiment-plan
+    aliases:
+      - dse-loop
+      - ablation-planner
+    trigger:
+      - "실험 설계"
+      - "실험 계획"
+      - "파라미터 탐색"
+      - "hyperparameter"
+      - "design space"
+      - "파라미터 최적화"
+      - "sweep"
+      - "ablation"
+      - "ablation study"
+      - "실험 계획 짜"
+
   research_paper:
     canonical: paper-write
     orchestrator: paper-writing
     aliases:
       - paper-plan
       - paper-compile
+      - writing-systems-papers
     trigger:
       - "논문 섹션 써"
       - "introduction 써"
       - "related work 써"
       - "abstract 써"
       - "method 써"
+      - "conclusion 써"
+      - "experiment 섹션"
+      - "논문 쓰기"
     orchestrator_trigger:
       - "논문 써"
       - "논문 전체"
@@ -234,18 +393,69 @@ categories:
       - "introduction 섹션을 써야 하는데"
       - "related work를 어떻게 쓰지?"
 
+  paper_figure:
+    canonical: paper-figure
+    aliases:
+      - paper-illustration
+      - paper-illustration-image2
+      - figure-spec
+      - figure-description
+    trigger:
+      - "그림 만들어"
+      - "figure"
+      - "피규어"
+      - "논문 그림"
+      - "illustration"
+      - "figure 스펙"
+      - "그림 설명"
+    examples:
+      - "논문에 들어갈 그림 만들어줘"
+      - "figure 1을 어떻게 그릴지 설계해줘"
+
+  paper_quality:
+    canonical: citation-audit
+    aliases:
+      - paper-claim-audit
+      - humanizer
+    trigger:
+      - "인용 확인"
+      - "citation 검토"
+      - "claim 검증"
+      - "논문 검수"
+      - "사실 확인"
+      - "reference 맞는지"
+      - "citation audit"
+    examples:
+      - "논문 인용이 제대로 됐는지 확인해줘"
+      - "claim들이 evidence로 뒷받침되는지 봐줘"
+
+  rebuttal_review:
+    canonical: rebuttal
+    trigger:
+      - "리뷰어 답변"
+      - "rebuttal"
+      - "reviewer 답변"
+      - "리뷰 대응"
+      - "리뷰어 피드백"
+      - "camera ready"
+      - "revision"
+      - "리뷰 반박"
+    examples:
+      - "reviewer 피드백에 답변해야 해"
+      - "rebuttal 작성 도와줘"
+
   research_full_pipeline:
-    # auto-review-loop: iterative improvement loop (review → fix → re-review)
-    # research-pipeline: end-to-end (idea-discovery → experiment → auto-review-loop)
     canonical: auto-review-loop
     orchestrator: research-pipeline
     aliases:
       - auto-review-loop-llm
+      - research-refine-pipeline
     trigger:
       - "review loop"
       - "논문 개선"
-      - "reviewer 피드백"
       - "auto review"
+      - "반복 개선"
+      - "iterative"
     orchestrator_trigger:
       - "처음부터 끝까지"
       - "full pipeline"
@@ -256,21 +466,23 @@ categories:
     canonical: analyze-results
     aliases:
       - result-to-claim
-      - ablation-planner
     trigger:
       - "결과 분석"
       - "성능 비교"
-      - "ablation"
       - "metric"
       - "그래프 그려"
       - "evaluation"
       - "성능 측정"
+      - "결과 해석"
+      - "숫자 분석"
+      - "표 만들어"
 
   gpu_compute:
     canonical: vast-gpu
     aliases:
       - training-check
       - system-profile
+      - serverless-modal
     trigger:
       - "gpu 빌려"
       - "학습 서버"
@@ -278,15 +490,96 @@ categories:
       - "훈련 모니터"
       - "wandb"
       - "학습 상태"
+      - "serverless"
+      - "modal"
+      - "클라우드 gpu"
+      - "A100"
+      - "H100"
 
-  design_space:
-    canonical: dse-loop
+  research_wiki:
+    canonical: research-wiki
     trigger:
-      - "파라미터 탐색"
-      - "hyperparameter"
-      - "design space"
-      - "파라미터 최적화"
-      - "sweep"
+      - "연구 위키"
+      - "연구 정리"
+      - "research wiki"
+      - "지식 베이스"
+      - "knowledge base"
+      - "연구 노트"
+
+  # ── Patent & IP ──────────────────────────────────────────────────────────
+
+  patent:
+    canonical: patent-review
+    orchestrator: patent-pipeline
+    aliases:
+      - claims-drafting
+      - patent-novelty-check
+      - prior-art-search
+      - invention-structuring
+    trigger:
+      - "특허"
+      - "patent"
+      - "claim"
+      - "출원"
+      - "선행기술"
+      - "prior art"
+      - "발명"
+      - "ip"
+      - "지식재산"
+      - "청구항"
+      - "명세서"
+    orchestrator_trigger:
+      - "특허 전체"
+      - "patent pipeline"
+      - "특허 출원부터"
+    examples:
+      - "이 아이디어로 특허를 쓰고 싶어"
+      - "선행특허 검색해줘"
+      - "청구항 작성 도와줘"
+
+  # ── Math & Proof ─────────────────────────────────────────────────────────
+
+  math_proof:
+    canonical: formula-derivation
+    aliases:
+      - proof-writer
+      - proof-checker
+    trigger:
+      - "수식 유도"
+      - "증명"
+      - "proof"
+      - "formula"
+      - "수학적 증명"
+      - "수식 정리"
+      - "theorem"
+      - "lemma"
+      - "derivation"
+      - "수식 검증"
+      - "gradient"
+      - "미분"
+    examples:
+      - "이 수식을 유도해줘"
+      - "이 증명이 맞는지 확인해줘"
+      - "gradient를 계산해줘"
+
+  # ── Specification & Technical Writing ────────────────────────────────────
+
+  specification:
+    canonical: specification-writing
+    aliases:
+      - embodiment-description
+      - invention-structuring
+    trigger:
+      - "스펙 문서"
+      - "specification"
+      - "요구사항 문서"
+      - "기술 명세"
+      - "실시예"
+      - "technical spec"
+      - "사양서"
+    examples:
+      - "이 시스템의 스펙 문서를 작성해줘"
+      - "기술 명세서를 써야 해"
 
   # ── Documentation ────────────────────────────────────────────────────────
 
@@ -301,6 +594,8 @@ categories:
       - "학회 발표"
       - "conference slides"
       - "beamer"
+      - "ppt 만들어"
+      - "발표용"
     orchestrator_trigger:
       - "포스터 만들어"
       - "conference poster"
@@ -314,10 +609,8 @@ categories:
       - "diagram"
       - "flowchart"
       - "sequence diagram"
-    orchestrator_trigger:
-      - "코드 배포 후 문서"
-      - "docs 갱신"
-      - "document release"
+      - "mermaid"
+      - "시스템 구조도"
 
   docs_grant:
     canonical: grant-proposal
@@ -330,6 +623,8 @@ categories:
       - "KAKENHI"
       - "NSF"
       - "기금 신청"
+      - "과제 제안서"
+      - "연구 계획서"
 
   docs_format:
     canonical: pdf
@@ -346,17 +641,36 @@ categories:
       - "파워포인트"
       - ".xlsx"
       - "스프레드시트"
+      - "엑셀"
+      - "word로"
 
   docs_final:
     canonical: humanizer
     trigger:
       - "humanize"
       - "ai 흔적"
-      - "논문 검수"
       - "자연스럽게 고쳐"
       - "ai 냄새 제거"
+      - "사람이 쓴 것처럼"
 
-  # ── Web / Design ─────────────────────────────────────────────────────────
+  overleaf:
+    canonical: overleaf-sync
+    trigger:
+      - "overleaf"
+      - "latex 동기화"
+      - "overleaf 올려"
+      - "latex 업로드"
+    examples:
+      - "overleaf에 올려줘"
+      - "latex 파일 동기화해줘"
+
+  jurisdiction:
+    canonical: jurisdiction-format
+    trigger:
+      - "jurisdiction"
+      - "법률 형식"
+      - "국가별 형식"
+      - "포맷 변환"
 
   # ── Study ────────────────────────────────────────────────────────────────
 
@@ -377,6 +691,9 @@ categories:
       - "문서 분석"
       - "deep dive 논문"
       - "읽어야 할"
+      - "이해 안 가"
+      - "설명해줘"
+      - "요약해줘"
     orchestrator_trigger: []
     examples:
       - "이 논문 읽고 핵심 개념 정리해줘"
